@@ -1,0 +1,681 @@
+<title>197カ国 暗記帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --ground:#E9EEEC; --panel:#F8F9F6; --ink:#17262E; --muted:#5E6F75; --line:#CAD5D3;
+  --ocean:#C7D9E0; --land:#F4F1E8; --border:#A9B8B6; --grat:rgba(23,38,46,.08); --sea:#5D8497;
+  --hi:#E3662A; --hi-ink:#FFFFFF; --ok:#23805A; --ok-bg:#DDEFE5; --ng:#C23A3A; --ng-bg:#F6E0DD;
+  --chip:#DDE5E3;
+  --display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0E171C; --panel:#15222A; --ink:#E4ECEA; --muted:#8FA3A7; --line:#27383F;
+    --ocean:#12303D; --land:#2C3D43; --border:#4A5E63; --grat:rgba(228,236,234,.07); --sea:#7FA9BC;
+    --hi:#F08A45; --hi-ink:#1A0E06; --ok:#5CC994; --ok-bg:#16352A; --ng:#F07A72; --ng-bg:#3A1D1D;
+    --chip:#1F2F36;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0E171C; --panel:#15222A; --ink:#E4ECEA; --muted:#8FA3A7; --line:#27383F;
+  --ocean:#12303D; --land:#2C3D43; --border:#4A5E63; --grat:rgba(228,236,234,.07); --sea:#7FA9BC;
+  --hi:#F08A45; --hi-ink:#1A0E06; --ok:#5CC994; --ok-bg:#16352A; --ng:#F07A72; --ng-bg:#3A1D1D;
+  --chip:#1F2F36;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:18px 40px}
+.wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,36px);line-height:1.1;margin:0;letter-spacing:.02em}
+h1 small{display:block;font-family:var(--body);font-size:13px;font-weight:500;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+.meter{min-width:240px;flex:0 1 340px;display:flex;flex-direction:column;gap:6px}
+.meter .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+.meter b{font-family:var(--mono);font-size:22px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--chip);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .b3{background:var(--ok)} .bar .b1{background:color-mix(in srgb,var(--ok) 40%,var(--chip))}
+.controls{display:flex;flex-direction:column;gap:10px}
+.tabs,.chips{display:flex;flex-wrap:wrap;gap:6px}
+button,select{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:2px solid var(--hi);outline-offset:2px}
+.tab{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:8px;font-weight:700;font-size:14px}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.chip{border:0;background:var(--chip);padding:4px 12px;border-radius:999px;font-size:13px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--hi);color:var(--hi-ink)}
+.chip .n{font-family:var(--mono);font-size:11px;opacity:.7;margin-left:4px}
+.range{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:8px 12px}
+.range b{font-weight:700}
+.range select{background:var(--ground);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:13px;max-width:190px}
+.range .cnt{font-family:var(--mono);color:var(--muted);font-size:12px}
+main{display:grid;grid-template-columns:minmax(0,460px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:840px){main{grid-template-columns:1fr}}
+.globe{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:840px){.globe{position:static}}
+.gwrap{position:relative}
+#cv{width:100%;aspect-ratio:1/1;max-width:100%;display:block;touch-action:none;cursor:grab}
+#cv:active{cursor:grabbing}
+#mini{position:absolute;left:0;bottom:0;width:38%;aspect-ratio:2/1;max-width:100%;border:1px solid var(--line);border-radius:6px;background:var(--panel);pointer-events:none}
+.gnote{font-size:11.5px;color:var(--muted);text-align:right;margin-top:-6px}
+.info{display:flex;gap:14px;align-items:flex-start;min-height:74px}
+.info .fl{font-size:56px;line-height:1}
+.info .nm{font-family:var(--display);font-size:22px;line-height:1.25;text-wrap:balance}
+.info dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px;color:var(--muted)}
+.info dt{font-weight:700;white-space:nowrap}.info dd{margin:0}
+.info dd.where{color:var(--ink)}
+.info .hint{color:var(--muted);font-size:13px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:300px}
+.qlabel{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.prompt{display:flex;align-items:center;justify-content:center;min-height:150px;text-align:center}
+.prompt .bigflag{font-size:clamp(96px,16vw,150px);line-height:1}
+.prompt .bigname{font-family:var(--display);font-size:clamp(28px,5vw,44px);line-height:1.2;text-wrap:balance}
+.prompt .sub{display:block;font-family:var(--body);font-size:14px;color:var(--muted);margin-top:6px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:460px){.choices{grid-template-columns:1fr}}
+.choice{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);background:var(--ground);border-radius:10px;padding:12px 14px;text-align:left;font-size:16px;font-weight:700;min-height:58px}
+.choice:hover:not(:disabled){border-color:var(--ink)}
+.choice .k{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;flex:none}
+.choice .ef{font-size:42px;line-height:1}
+.choices.flags .choice{justify-content:center}
+.choice.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.choice.ng{border-color:var(--ng);background:var(--ng-bg);color:var(--ng)}
+.choice:disabled{cursor:default}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.verdict{font-weight:700;font-size:15px}
+.verdict.ok{color:var(--ok)} .verdict.ng{color:var(--ng)}
+.next{border:0;background:var(--ink);color:var(--ground);padding:10px 20px;border-radius:8px;font-weight:700}
+.stat{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column;gap:20px}
+.list h2{font-family:var(--display);font-weight:400;font-size:18px;margin:0 0 8px;display:flex;gap:8px;align-items:baseline}
+.list h2 span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.tile{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:var(--ground);border-radius:8px;padding:6px 8px;text-align:left;font-size:13.5px;font-weight:500;line-height:1.3}
+.tile:hover{border-color:var(--line)}
+.tile.out{opacity:.38}
+.tile[aria-current="true"]{border-color:var(--hi);background:color-mix(in srgb,var(--hi) 14%,var(--ground));opacity:1}
+.tile .no{font-family:var(--mono);font-size:11px;color:var(--muted);width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.tile .ef{font-size:24px;line-height:1;flex:none}
+.tile .dot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:auto;background:var(--chip)}
+.tile .dot.l1{background:color-mix(in srgb,var(--ok) 45%,var(--chip))}
+.tile .dot.l3{background:var(--ok)}
+.tile .dot.l0{background:var(--ng)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.tools{display:flex;justify-content:flex-end;gap:8px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.link{border:0;background:none;text-decoration:underline;color:var(--muted);font-size:12px;padding:2px}
+.confirm{display:inline-flex;gap:8px;align-items:center}
+.confirm button{border:1px solid var(--ng);background:none;color:var(--ng);border-radius:6px;padding:2px 10px;font-size:12px}
+main.solo{grid-template-columns:1fr}
+.tab.test{border-color:var(--hi);color:var(--hi)}
+.tab.test[aria-pressed="true"]{background:var(--hi);color:var(--hi-ink);border-color:var(--hi)}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px}
+.sheet h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.sheet .lead{margin:0;color:var(--muted);font-size:14px}
+.sheet h3{font-size:14px;letter-spacing:.08em;margin:0 0 8px;font-weight:700}
+#tmap{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:var(--ocean)}
+.tcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.tcols{grid-template-columns:1fr}}
+.atable{width:100%;border-collapse:collapse;font-size:14px}
+.atable th{white-space:nowrap;font-size:12px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+.atable td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.atable .num{font-family:var(--display);font-size:16px;width:34px;text-align:center}
+.atable input{width:100%;min-width:0;font:inherit;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.atable select{font:inherit;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 4px;width:64px}
+.atable input:focus-visible,.atable select:focus-visible{outline:2px solid var(--hi);outline-offset:1px}
+.atable .res{font-size:12px;line-height:1.3;margin-top:3px}
+.atable .res.ok{color:var(--ok)} .atable .res.ng{color:var(--ng)}
+.atable td.okc input,.atable td.okc select{border-color:var(--ok);background:var(--ok-bg)}
+.atable td.ngc input,.atable td.ngc select{border-color:var(--ng);background:var(--ng-bg)}
+.bank{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.bank div{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:8px 4px}
+.bank .cn{font-family:var(--display);font-size:16px}
+.bank .ef{font-size:46px;line-height:1.05}
+.bank .an{font-size:11px;color:var(--muted);min-height:1em;text-align:center;line-height:1.2}
+.tbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tbar .ghost{border:1px solid var(--line);background:var(--ground);padding:9px 16px;border-radius:8px;font-weight:700}
+.score{font-family:var(--display);font-size:28px}
+.score small{font-family:var(--body);font-size:14px;color:var(--muted);margin-left:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>197カ国 暗記帳<small>国旗・国名・場所をセットで覚える　「世界の国旗」国旗一覧（大陸ごと）と同じ並び</small></h1>
+    <div class="meter" aria-live="polite">
+      <div class="row"><span>覚えた国（3回連続正解）</span><span><b id="mCount">0</b> / <span id="mTotal">15</span></span></div>
+      <div class="bar"><i class="b3" id="bar3"></i><i class="b1" id="bar1"></i></div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="tabs" role="group" aria-label="モード">
+      <button class="tab" data-mode="browse" id="t-browse">図鑑で見る</button>
+      <button class="tab" data-mode="flag" id="t-flag">国旗 → 国名</button>
+      <button class="tab" data-mode="map" id="t-map">場所 → 国名</button>
+      <button class="tab" data-mode="name" id="t-name">国名 → 国旗</button>
+      <button class="tab test" data-mode="test" id="t-test">テスト</button>
+    </div>
+    <div class="chips" role="group" aria-label="地域" id="chips"></div>
+    <div class="range" id="range"></div>
+  </div>
+
+  <main>
+    <section class="globe" id="globeSec" aria-label="地球儀">
+      <div class="gwrap">
+        <canvas id="cv" aria-label="選んだ国を示す地球儀。ドラッグで回せます"></canvas>
+        <canvas id="mini" aria-hidden="true"></canvas>
+      </div>
+      <div class="gnote">ドラッグで回せます・左下は世界全体での位置</div>
+      <div class="info" id="info"></div>
+    </section>
+    <section id="right"></section>
+  </main>
+
+  <div class="tools">
+    <span>記録はこのブラウザに保存されます</span>
+    <span id="resetWrap"><button class="link" id="resetBtn">記録をリセット</button></span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+const C = __DATA__;
+const REGIONS = ["アジア","ヨーロッパ","アフリカ","北アメリカ","南アメリカ","オセアニア"];
+const byCode = new Map(C.map(c => [c.c, c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* 位置の覚え方（まずアジア） */
+const WHERE = {
+AZ:"カスピ海の西岸。コーカサス3国（ジョージア・アルメニア・アゼルバイジャン）のいちばん東。南はイラン。",
+AF:"海のない内陸国。西はイラン、東と南はパキスタン、北は中央アジアの国々。",
+AE:"アラビア半島の東の端、ペルシャ湾の出口の近く。サウジアラビアとオマーンにはさまれる。",
+AM:"コーカサス3国のまん中の内陸国。西はトルコ、東はアゼルバイジャン、南はイラン。",
+YE:"アラビア半島の南西の端。北はサウジアラビア。紅海の出口をはさんだ向かいはアフリカ。",
+IL:"地中海のいちばん東の岸。北はレバノン、東はヨルダン、南西はエジプト。",
+IQ:"ペルシャ湾の奥。チグリス川・ユーフラテス川の国。東はイラン、西はシリア・ヨルダン、南はサウジアラビア。",
+IR:"北はカスピ海、南はペルシャ湾。西はイラク・トルコ、東はアフガニスタン・パキスタン。",
+IN:"南アジアの大きな逆三角形の半島。左（西）はアラビア海、右（東）はベンガル湾、北にヒマラヤ。",
+ID:"赤道にまたがる東南アジアの島国。スマトラ島・ジャワ島など東西に長く島が並ぶ。北はマレーシア。",
+UZ:"中央アジアのまん中。北と西はカザフスタン、南はアフガニスタン・トルクメニスタン。",
+OM:"アラビア半島の南東の角。アラビア海に面する。北西はアラブ首長国連邦、西はサウジアラビア。",
+KZ:"中央アジアでいちばん大きい。カスピ海の東、北はロシア、東は中国。世界最大の内陸国。",
+QA:"ペルシャ湾に親指のように突き出た小さな半島。南はサウジアラビア、西にバーレーン。",
+KH:"インドシナ半島の南部。北西はタイ、北はラオス、東はベトナム。南はタイランド湾。",
+KP:"朝鮮半島の北半分。北は中国、南は大韓民国。東は日本海。",
+KG:"中央アジアの山国。東は中国、北はカザフスタン、西はウズベキスタン、南はタジキスタン。",
+KW:"ペルシャ湾のいちばん奥の小国。北はイラク、南はサウジアラビア。",
+SA:"アラビア半島の大部分をしめる大きな国。西は紅海、東はペルシャ湾。",
+GE:"コーカサス3国のいちばん北西。黒海の東岸で、北はロシア。",
+SY:"地中海の東岸。北はトルコ、東はイラク、南はヨルダン、西はレバノン。",
+SG:"マレー半島の南の先にある小さな島国。北はマレーシア、南はインドネシア。",
+LK:"インドの南東、インド洋にうかぶしずく形の島国。",
+TH:"インドシナ半島のまん中。西はミャンマー、東はラオス・カンボジア、南はマレーシア。",
+KR:"朝鮮半島の南半分。北は北朝鮮、海をはさんで東に日本。",
+TJ:"中央アジアの南東の山国。南はアフガニスタン、東は中国、北はキルギス・ウズベキスタン。",
+CN:"東アジアの大国。東は東シナ海・黄海。14か国と国境を接する。",
+TM:"中央アジアの南西、カスピ海の東岸。南はイラン・アフガニスタン。",
+TR:"アジアとヨーロッパの境目。北は黒海、南と西は地中海。東はジョージア・アルメニア・イラン。",
+JP:"ユーラシア大陸の東の島国。日本海をはさんで朝鮮半島と向かい合う。",
+NP:"ヒマラヤ山脈の南側の内陸国。北は中国、東・西・南はインド。",
+PK:"インドの西どなり。西はアフガニスタン・イラン、南はアラビア海。",
+BH:"ペルシャ湾にうかぶ小さな島国。サウジアラビアとカタールの間。",
+BD:"インドの東、ベンガル湾のいちばん奥。ほぼインドに囲まれ、南東だけミャンマー。",
+TL:"ティモール島の東半分。西半分はインドネシア。南の海の先はオーストラリア。",
+PH:"東南アジアの島国。台湾の南。西は南シナ海、東は太平洋。",
+BT:"ヒマラヤ山脈の東部の内陸国。北は中国、南はインド。ネパールの東。",
+BN:"カリマンタン（ボルネオ）島の北岸の小国。まわりはマレーシア。",
+VN:"インドシナ半島の東側、S字形の細長い国。北は中国、西はラオス・カンボジア。",
+MY:"マレー半島の南部と、カリマンタン島の北部の2つに分かれる。南にシンガポール。",
+MM:"インドシナ半島の西側。西はバングラデシュ・インド、東はタイ・ラオス、北は中国。",
+MV:"インドとスリランカの南西、インド洋に点々と続くサンゴ礁の島国。",
+MN:"ロシアと中国にはさまれた内陸国。",
+JO:"死海の東。西はイスラエル、北はシリア、東はイラク、南はサウジアラビア。",
+LA:"インドシナ半島のまん中の内陸国。東はベトナム、西はタイ、南はカンボジア、北は中国。",
+LB:"地中海の東岸の小国。北と東はシリア、南はイスラエル。"
+};
+const SEAS = [["太平洋",20,165],["太平洋",-20,-130],["大西洋",25,-40],["大西洋",-20,-15],["インド洋",-18,78],
+  ["カスピ海",42,50.5],["黒海",43.3,34.5],["地中海",34.5,19],["紅海",20,38.4],["ペルシャ湾",27.3,51.2],["アラビア海",15,64],
+  ["ベンガル湾",15,88],["南シナ海",13,114],["日本海",40,135],["東シナ海",29,125.5],["タイランド湾",10,101.8],["アンダマン海",11,96.5],
+  ["北極海",82,0],["カリブ海",15,-75],["メキシコ湾",25,-90],["北海",56,3],["バルト海",58,20]];
+
+/* ---------- storage ---------- */
+const KEY = "atlas197:v2";
+function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S.saved)); } catch(e){} }
+const S = { saved: load(), q: null, recent: [], ok: 0, n: 0, streak: 0 };
+S.saved.p = S.saved.p || {};
+S.saved.mode = S.saved.mode || "browse";
+S.saved.region = S.saved.region || "アジア";
+S.saved.from = S.saved.from || 1;
+S.saved.to = S.saved.to || 15;           // 今回のテスト範囲：アジア 1〜15
+S.sel = S.saved.sel || "AZ";
+const lv = cc => (S.saved.p[cc] ?? -1);   // -1 未出題, 0 間違えた, 1-2 途中, 3+ 覚えた
+
+/* ---------- globe ---------- */
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const mini = document.getElementById("mini"), mctx = mini.getContext("2d");
+let feats = [], featBy = new Map(), codeOf = new Map(), grat = d3.geoGraticule10();
+const G = { rot: [-50, -30, 0], scale: 1, target: null, marker: null, hide: new Set(), anim: null };
+function tok(){ const s = getComputedStyle(document.documentElement); const g = n => s.getPropertyValue(n).trim(); return { ocean:g("--ocean"), land:g("--land"), border:g("--border"), grat:g("--grat"), hi:g("--hi"), ink:g("--ink"), panel:g("--panel"), muted:g("--muted"), sea:g("--sea") }; }
+let T = tok();
+function fitCanvas(){
+  const d = devicePixelRatio || 1, w = cv.clientWidth;
+  cv.width = Math.round(w*d); cv.height = Math.round(w*d); ctx.setTransform(d,0,0,d,0,0);
+  const mw = mini.clientWidth, mh = mini.clientHeight;
+  mini.width = Math.round(mw*d); mini.height = Math.round(mh*d); mctx.setTransform(d,0,0,d,0,0);
+  draw();
+}
+function viewAngle(cc){
+  const f = featBy.get(cc); if (!f) return 16;
+  const r = Math.sqrt(d3.geoArea(f.main)/Math.PI) * 180/Math.PI;
+  return Math.max(16, Math.min(80, r*4.2));
+}
+function labelFont(sz, w){ return `${w} ${sz}px "Zen Kaku Gothic New","Hiragino Sans",sans-serif`; }
+function draw(){
+  const w = cv.clientWidth; if (!w) return;
+  const R = w/2 - 6, center = [-G.rot[0], -G.rot[1]];
+  const p = d3.geoOrthographic().translate([w/2, w/2]).scale(R*G.scale).rotate(G.rot).clipAngle(90).precision(.4);
+  const path = d3.geoPath(p, ctx);
+  ctx.clearRect(0,0,w,w);
+  ctx.save(); ctx.beginPath(); ctx.arc(w/2,w/2,R,0,Math.PI*2); ctx.clip();
+  ctx.beginPath(); path({type:"Sphere"}); ctx.fillStyle = T.ocean; ctx.fill();
+  ctx.beginPath(); path(grat); ctx.strokeStyle = T.grat; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); for (const f of feats) path(f); ctx.fillStyle = T.land; ctx.fill();
+  ctx.strokeStyle = T.border; ctx.lineWidth = .7; ctx.stroke();
+  const tf = G.target && featBy.get(G.target);
+  if (tf){ ctx.beginPath(); path(tf); ctx.fillStyle = T.hi; ctx.fill(); ctx.strokeStyle = T.ink; ctx.lineWidth = 1; ctx.stroke(); }
+
+  /* 海の名前 */
+  const seaSize = Math.max(10, Math.min(13, 9 + G.scale));
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const boxes = [];
+  const hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+  const inDisc = b => [[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]].every(([x,y]) => Math.hypot(x-w/2, y-w/2) < R-3);
+  if (tf && !G.hide.has(G.target)){
+    const [x,y] = path.centroid(tf.main);
+    if (isFinite(x)){ ctx.font = labelFont(15, 700); const tw = ctx.measureText(byCode.get(G.target).n).width; boxes.push([x-tw/2-3, y-11, x+tw/2+3, y+11]); }
+  }
+  for (const [nm, la, lo] of SEAS){
+    if (d3.geoDistance([lo,la], center) > 1.35) continue;
+    const big = nm.endsWith("洋");
+    if (!big && G.scale < 1.6) continue;
+    const [x,y] = p([lo,la]);
+    ctx.font = `italic 500 ${big ? seaSize+2 : seaSize}px "Zen Kaku Gothic New",sans-serif`;
+    const tw = ctx.measureText(nm).width, b = [x-tw/2-2, y-8, x+tw/2+2, y+8];
+    if (!inDisc(b) || hit(b)) continue;
+    ctx.fillStyle = T.sea; ctx.fillText(nm, x, y); boxes.push(b);
+  }
+
+  /* 国名ラベル：ターゲット→面積の大きい順、重なるものは省略 */
+  const L = [];
+  for (const f of feats){
+    const cc = codeOf.get(f); if (!cc || G.hide.has(cc)) continue;
+    const c = byCode.get(cc), anchor = [c.ll[1], c.ll[0]];
+    if (d3.geoDistance(anchor, center) > 1.35) continue;
+    const a = path.area(f.main);
+    const isT = cc === G.target;
+    if (!isT && a < 70) continue;
+    let [x,y] = path.centroid(f.main); if (!isFinite(x)) continue;
+    L.push({cc, x, y, a: isT ? 1e12 : a, isT});
+  }
+  L.sort((u,v) => v.a - u.a);
+  for (const l of L){
+    const nm = byCode.get(l.cc).n, sz = l.isT ? 15 : l.a > 6000 ? 13 : 11.5;
+    ctx.font = labelFont(sz, l.isT ? 700 : 500);
+    const tw = ctx.measureText(nm).width;
+    const y = l.y;
+    const b = [l.x - tw/2 - 3, y - sz/2 - 3, l.x + tw/2 + 3, y + sz/2 + 3];
+    if (!l.isT && (!inDisc(b) || hit(b))) continue;
+    boxes.push(b);
+    ctx.lineJoin = "round"; ctx.lineWidth = 3.5; ctx.strokeStyle = l.isT ? T.panel : T.land; ctx.strokeText(nm, l.x, y);
+    ctx.fillStyle = l.isT ? T.ink : T.muted; ctx.fillText(nm, l.x, y);
+  }
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(w/2,w/2,R,0,Math.PI*2); ctx.strokeStyle = T.border; ctx.lineWidth = 1; ctx.stroke();
+  if (G.marker){
+    const c = byCode.get(G.marker), ll = [c.ll[1], c.ll[0]];
+    if (d3.geoDistance(ll, center) < Math.PI/2){
+      const small = !tf || path.area(tf.main) < 400;
+      if (small){ const [x,y] = p(ll);
+        ctx.beginPath(); ctx.arc(x,y,16,0,Math.PI*2); ctx.strokeStyle = T.hi; ctx.lineWidth = 2.5; ctx.stroke(); }
+    }
+  }
+  drawMini();
+}
+let miniBase = null;
+function drawMini(){
+  const mw = mini.clientWidth, mh = mini.clientHeight; if (!mw || !feats.length) return;
+  const p = d3.geoEquirectangular().fitExtent([[3,3],[mw-3,mh-3]], {type:"Sphere"});
+  const path = d3.geoPath(p, mctx);
+  mctx.clearRect(0,0,mw,mh);
+  mctx.beginPath(); path({type:"Sphere"}); mctx.fillStyle = T.ocean; mctx.fill();
+  mctx.beginPath(); for (const f of feats) path(f); mctx.fillStyle = T.land; mctx.fill();
+  mctx.strokeStyle = T.border; mctx.lineWidth = .3; mctx.stroke();
+  // 大きな地球儀で見えている範囲
+  const center = [-G.rot[0], -G.rot[1]];
+  const ang = Math.asin(Math.min(1, 1/G.scale)) * 180/Math.PI;
+  mctx.beginPath(); path(d3.geoCircle().center(center).radius(ang)()); mctx.strokeStyle = T.muted; mctx.lineWidth = 1; mctx.setLineDash([3,2]); mctx.stroke(); mctx.setLineDash([]);
+  if (G.marker){
+    const c = byCode.get(G.marker), [x,y] = p([c.ll[1], c.ll[0]]);
+    const tf = featBy.get(G.marker);
+    if (tf){ mctx.beginPath(); path(tf); mctx.fillStyle = T.hi; mctx.fill(); }
+    mctx.beginPath(); mctx.arc(x,y,4,0,Math.PI*2); mctx.fillStyle = T.hi; mctx.fill();
+    mctx.lineWidth = 1.5; mctx.strokeStyle = T.panel; mctx.stroke();
+  }
+}
+function flyTo(cc, show, hide){
+  const c = byCode.get(cc);
+  const toRot = [-c.ll[1], -Math.max(-60, Math.min(60, c.ll[0])), 0];
+  const toScale = 1/Math.sin(viewAngle(cc)*Math.PI/180);
+  goTo(toRot, Math.min(toScale, 3.8), show ? cc : null, hide);
+}
+function overview(){ goTo([G.rot[0], -20, 0], 1, null); }
+function goTo(toRot, toScale, cc, hide){
+  G.target = cc; G.marker = cc; G.hide = hide || new Set();
+  if (G.anim) G.anim.stop();
+  if (reduce){ G.rot = toRot; G.scale = toScale; draw(); return; }
+  const fromRot = G.rot.slice(), fromScale = G.scale;
+  let dl = toRot[0] - fromRot[0]; dl = ((dl + 540) % 360) - 180;
+  const ir = d3.interpolate(fromRot, [fromRot[0]+dl, toRot[1], 0]);
+  const zoomOut = Math.min(fromScale, toScale, Math.abs(dl) > 60 ? 1.1 : 99);
+  G.anim = d3.timer(el => {
+    const t = Math.min(1, el/900), e = d3.easeCubicInOut(t);
+    G.rot = ir(e);
+    const a = fromScale + (zoomOut - fromScale)*Math.min(1, e*2), b = zoomOut + (toScale - zoomOut)*Math.max(0, e*2-1);
+    G.scale = e < .5 ? a : b;
+    draw(); if (t >= 1) G.anim.stop();
+  });
+}
+{ let st=null;
+  cv.addEventListener("pointerdown", e => { st = {x:e.clientX, y:e.clientY, r:G.rot.slice()}; cv.setPointerCapture(e.pointerId); if (G.anim) G.anim.stop(); });
+  cv.addEventListener("pointermove", e => { if (!st) return; const k = 90/(cv.clientWidth*G.scale/2);
+    G.rot = [st.r[0] + (e.clientX-st.x)*k, Math.max(-85, Math.min(85, st.r[1] - (e.clientY-st.y)*k)), 0]; draw(); });
+  cv.addEventListener("pointerup", () => st = null); cv.addEventListener("pointercancel", () => st = null);
+}
+new ResizeObserver(fitCanvas).observe(cv);
+const retheme = () => { T = tok(); draw(); if (S.saved.mode === "test") drawTestMap(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
+new MutationObserver(retheme).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+
+fetch("world.json").then(r => r.json()).then(topo => {
+  feats = topojson.feature(topo, topo.objects.countries).features;
+  const byNum = new Map(C.map(c => [c.id, c.c]));
+  for (const f of feats){
+    // 飛び地を除いた一番大きな陸地（ラベル位置・ズームの基準）
+    if (f.geometry && f.geometry.type === "MultiPolygon"){
+      let best = null, ba = -1;
+      for (const poly of f.geometry.coordinates){ const g = {type:"Polygon", coordinates: poly}, a = d3.geoArea(g); if (a > ba){ ba = a; best = g; } }
+      f.main = best;
+    } else f.main = f.geometry;
+    const cc = f.id ? byNum.get(f.id) : (f.properties.name === "Kosovo" ? "XK" : null);
+    if (cc){ featBy.set(cc, f); codeOf.set(f, cc); }
+  }
+  feats = feats.filter(f => f.geometry);
+  refreshGlobe(true);
+  if (S.saved.mode === "test") drawTestMap();
+});
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const regionList = r => C.filter(c => c.r === r);
+function pool(){
+  if (S.saved.region === "all") return C;
+  return regionList(S.saved.region).filter(c => c.no >= S.saved.from && c.no <= S.saved.to);
+}
+const inPool = cc => pool().some(c => c.c === cc);
+
+function renderChips(){
+  const opts = [["all","全世界",C.length], ...REGIONS.map(r => [r, r, regionList(r).length])];
+  $("chips").innerHTML = opts.map(([v,l,n]) => `<button class="chip" data-r="${v}" aria-pressed="${S.saved.region===v}">${l}<span class="n">${n}</span></button>`).join("");
+  const R = $("range");
+  if (S.saved.region === "all"){ R.innerHTML = `<b>範囲</b><span>全197カ国から出題</span>`; return; }
+  const L = regionList(S.saved.region);
+  const opt = (sel) => L.map(c => `<option value="${c.no}" ${c.no===sel?"selected":""}>${c.no}. ${esc(c.n)}</option>`).join("");
+  R.innerHTML = `<b>テスト範囲</b><span>${S.saved.region}</span>
+    <select id="rFrom" aria-label="はじめ">${opt(S.saved.from)}</select><span>〜</span>
+    <select id="rTo" aria-label="おわり">${opt(S.saved.to)}</select>
+    <span class="cnt">${pool().length}カ国</span>
+    <button class="chip" id="rAll">${S.saved.region}ぜんぶ</button>`;
+}
+function renderMeter(){
+  const P = pool(), m3 = P.filter(c => lv(c.c) >= 3).length, m1 = P.filter(c => lv(c.c) >= 1 && lv(c.c) < 3).length;
+  $("mCount").textContent = m3; $("mTotal").textContent = P.length;
+  $("bar3").style.width = (m3/P.length*100) + "%"; $("bar1").style.width = (m1/P.length*100) + "%";
+}
+function renderInfo(cc, hidden){
+  if (hidden){ $("info").innerHTML = `<div class="hint">${hidden}</div>`; return; }
+  const c = byCode.get(cc);
+  $("info").innerHTML = `<div class="fl" aria-hidden="true">${c.f}</div><div><div class="nm">${esc(c.n)}</div>
+    <dl><dt>首都</dt><dd>${esc(c.cap)}</dd><dt>英語</dt><dd>${esc(c.en)}</dd><dt>地域</dt><dd>${esc(c.r)}の${c.no}番</dd>
+    ${WHERE[cc] ? `<dt>場所</dt><dd class="where">${esc(WHERE[cc])}</dd>` : ""}</dl></div>`;
+}
+function renderTabs(){ document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === S.saved.mode)); }
+
+function renderBrowse(){
+  const regs = S.saved.region === "all" ? REGIONS : [S.saved.region];
+  $("right").innerHTML = `<div class="stage"><div class="legend"><span>右の点：</span><span><i style="background:var(--ok)"></i>覚えた</span><span><i style="background:color-mix(in srgb,var(--ok) 45%,var(--chip))"></i>あと少し</span><span><i style="background:var(--ng)"></i>前回まちがえた</span><span><i style="background:var(--chip)"></i>未出題</span><span>うすい国はテスト範囲外</span></div>
+  <div class="list">${regs.map(r => { const L = regionList(r); return `<div><h2>${r}<span>${L.length}カ国</span></h2><div class="grid">${L.map(c => {
+    const l = lv(c.c), cls = l>=3?"l3":l>=1?"l1":l===0?"l0":"";
+    const out = S.saved.region !== "all" && (c.no < S.saved.from || c.no > S.saved.to);
+    return `<button class="tile ${out?"out":""}" data-cc="${c.c}" aria-current="${S.sel===c.c}"><span class="no">${c.no}</span><span class="ef" aria-hidden="true">${c.f}</span><span>${esc(c.n)}</span><span class="dot ${cls}"></span></button>`; }).join("")}</div></div>`; }).join("")}</div></div>`;
+  renderInfo(S.sel);
+}
+
+function pickQ(){
+  const P = pool();
+  const cand = P.length > 1 ? P.filter(c => !S.recent.includes(c.c)) : P;
+  const w = cand.map(c => { const l = lv(c.c); return l < 0 ? 3 : l === 0 ? 4 : l < 3 ? 2 : 0.35; });
+  let r = Math.random() * w.reduce((a,b)=>a+b,0), i = 0;
+  while (r > w[i] && i < w.length-1){ r -= w[i]; i++; }
+  const ans = cand[i];
+  S.recent = [ans.c, ...S.recent].slice(0, Math.max(0, Math.min(6, P.length - 3)));
+  // 選択肢はテスト範囲の国から（足りなければ同じ地域から）
+  let src = P.filter(c => c.c !== ans.c);
+  if (src.length < 3) src = C.filter(c => c.r === ans.r && c.c !== ans.c);
+  const others = d3.shuffle(src.slice()).slice(0,3);
+  S.q = { ans: ans.c, opts: d3.shuffle([ans, ...others]).map(c => c.c), done: false, picked: null };
+}
+function renderQuiz(){
+  if (!S.q) pickQ();
+  const q = S.q, a = byCode.get(q.ans), mode = S.saved.mode;
+  const label = { flag: "この国旗の国は？", map: "オレンジの国はどこ？", name: "この国の国旗は？" }[mode];
+  const prompt = mode === "flag" ? `<div class="bigflag" aria-label="国旗">${a.f}</div>`
+    : mode === "map" ? `<div class="bigname" style="font-size:22px;color:var(--muted)">左の地球儀を見て答えよう<span class="sub">まわりの国名と海の名前がヒントです</span></div>`
+    : `<div class="bigname">${esc(a.n)}<span class="sub">${esc(a.en)}</span></div>`;
+  const isFlag = mode === "name";
+  const opts = q.opts.map((cc, i) => { const c = byCode.get(cc);
+    let cls = ""; if (q.done){ if (cc === q.ans) cls = "ok"; else if (cc === q.picked) cls = "ng"; }
+    const body = isFlag ? `<span class="ef" aria-label="${esc(q.done ? c.n : "選択肢"+(i+1))}">${c.f}</span>${q.done ? `<span style="font-size:13px">${esc(c.n)}</span>` : ""}`
+      : `${q.done ? `<span class="ef" style="font-size:26px" aria-hidden="true">${c.f}</span>` : ""}<span>${esc(c.n)}</span>`;
+    return `<button class="choice ${cls}" data-cc="${cc}" ${q.done ? "disabled" : ""}><span class="k">${i+1}</span>${body}</button>`; }).join("");
+  const ok = q.picked === q.ans;
+  $("right").innerHTML = `<div class="stage">
+    <div class="qlabel">${label}</div>
+    <div class="prompt">${prompt}</div>
+    <div class="choices ${isFlag ? "flags" : ""}">${opts}</div>
+    <div class="foot">
+      ${q.done ? `<span class="verdict ${ok?"ok":"ng"}">${ok ? "正解！" : "ざんねん。正解は「"+esc(a.n)+"」"}</span><button class="next" id="nextBtn">次へ <span class="stat" style="color:inherit;opacity:.7">Enter</span></button>`
+        : `<span class="stat">数字キー 1〜4 でも答えられます</span><span></span>`}
+    </div>
+    <div class="stat">このセッション：${S.ok} / ${S.n} 正解　連続 ${S.streak}</div>
+  </div>`;
+  if (q.done) renderInfo(q.ans);
+  else renderInfo(null, mode === "map" ? "答えると国旗・首都・場所の覚え方が出ます" : "答えると、この国の場所に地球儀が回ります");
+  if (q.done) $("nextBtn").focus();
+}
+function refreshGlobe(first){
+  const mode = S.saved.mode;
+  if (mode === "browse") flyTo(S.sel, true);
+  else if (!S.q) return;
+  else if (S.q.done) flyTo(S.q.ans, true);
+  else if (mode === "map") flyTo(S.q.ans, true, new Set([S.q.ans, ...S.q.opts]));
+  else if (first) overview();
+}
+function answer(cc){
+  const q = S.q; if (!q || q.done) return;
+  q.done = true; q.picked = cc;
+  const ok = cc === q.ans, cur = lv(q.ans);
+  S.saved.p[q.ans] = ok ? Math.max(0, cur) + 1 : 0;
+  S.n++; if (ok){ S.ok++; S.streak++; } else S.streak = 0;
+  save(); renderMeter(); renderQuiz(); refreshGlobe();
+}
+function next(){
+  pickQ(); renderQuiz();
+  if (S.saved.mode === "map") refreshGlobe(); else overview();
+}
+/* ---------- テスト ---------- */
+const CIRC = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const ALIAS = { CN:["中国"], KR:["韓国"], KP:["朝鮮民主主義人民共和国"], US:["アメリカ合衆国","米国"], AE:["UAE"], GB:["英国"],
+  CD:["コンゴ民主"], CF:["中央アフリカ共和国"], ZA:["南アフリカ共和国"], TR:["トルコ共和国","テュルキエ"], CZ:["チェコ共和国"], DM:["ドミニカ"] };
+const norm = s => s.normalize("NFKC").replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+  .replace(/[\s・･.。、,＝=]/g, "").toUpperCase();
+const nameOk = (cc, s) => { const v = norm(s || ""); return !!v && [byCode.get(cc).n, ...(ALIAS[cc] || [])].some(x => norm(x) === v); };
+function newTest(){
+  let P = pool().slice();
+  if (P.length > 20) P = d3.shuffle(P).slice(0, 15);
+  S.test = { nums: d3.shuffle(P.map(c => c.c)), flags: d3.shuffle(P.map(c => c.c)), name: [], flag: [], graded: false };
+}
+function renderTest(){
+  if (!S.test || S.test.key !== testKey()){ newTest(); S.test.key = testKey(); }
+  const T2 = S.test, n = T2.nums.length, g = T2.graded;
+  let score = 0;
+  const rows = T2.nums.map((cc, i) => {
+    const c = byCode.get(cc), fi = T2.flags.indexOf(cc);
+    const nOk = nameOk(cc, T2.name[i]), fOk = T2.flag[i] !== undefined && T2.flag[i] !== "" && +T2.flag[i] === fi;
+    if (g){ score += nOk + fOk; }
+    const opts = `<option value="">―</option>` + T2.flags.map((_, k) => `<option value="${k}" ${String(T2.flag[i]) === String(k) ? "selected" : ""}>${CIRC[k]}</option>`).join("");
+    return `<tr><td class="num">${i+1}</td>
+      <td class="${g ? (nOk ? "okc" : "ngc") : ""}"><input id="tn-${i}" data-i="${i}" autocomplete="off" value="${esc(T2.name[i] || "")}" aria-label="${i+1}番の国名" ${g ? "readonly" : ""}>
+        ${g && !nOk ? `<div class="res ng">正解：${esc(c.n)}</div>` : g ? `<div class="res ok">○</div>` : ""}</td>
+      <td class="${g ? (fOk ? "okc" : "ngc") : ""}"><select id="tf-${i}" data-i="${i}" aria-label="${i+1}番の国旗" ${g ? "disabled" : ""}>${opts}</select>
+        ${g && !fOk ? `<div class="res ng">正解：${CIRC[fi]}</div>` : g ? `<div class="res ok">○</div>` : ""}</td></tr>`;
+  }).join("");
+  const bank = T2.flags.map((cc, k) => `<div><span class="cn">${CIRC[k]}</span><span class="ef" aria-label="国旗${CIRC[k]}">${byCode.get(cc).f}</span><span class="an">${g ? esc(byCode.get(cc).n) : ""}</span></div>`).join("");
+  const rangeTxt = S.saved.region === "all" ? "全世界からランダム" : `${S.saved.region} ${S.saved.from}〜${S.saved.to}番`;
+  $("right").innerHTML = `<div class="sheet">
+    <div><h2>国旗・国名テスト</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　地図の番号の国名を書き、国旗を${CIRC[0]}〜${CIRC[n-1]}から選びましょう。ひらがなでも正解になります。</p></div>
+    <canvas id="tmap" aria-label="番号がついた地図"></canvas>
+    <div class="tcols">
+      <div><h3>解答らん</h3><table class="atable"><thead><tr><th>番号</th><th>国名</th><th>国旗</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div><h3>国旗</h3><div class="bank">${bank}</div></div>
+    </div>
+    <div class="tbar">
+      ${g ? `<span class="score">${score} / ${n*2}<small>国名 ${T2.nums.filter((cc,i)=>nameOk(cc,T2.name[i])).length}/${n}・国旗 ${T2.nums.filter((cc,i)=>+T2.flag[i]===T2.flags.indexOf(cc) && T2.flag[i]!=="" && T2.flag[i]!==undefined).length}/${n}</small></span>
+             <button class="next" id="tNew">新しいテスト</button><button class="ghost" id="tRetry">同じ問題をもう一度</button>`
+          : `<button class="next" id="tGrade">採点する</button><button class="ghost" id="tNew">問題を作り直す</button>`}
+    </div></div>`;
+  drawTestMap();
+}
+const testKey = () => [S.saved.region, S.saved.from, S.saved.to].join("|");
+function drawTestMap(){
+  const cvs = $("tmap"); if (!cvs || !S.test) return;
+  const w = cvs.clientWidth; if (!w) return;
+  const TT = tok(), n = S.test.nums.length;
+  const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates:[byCode.get(cc).ll[1], byCode.get(cc).ll[0]]});
+  const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
+  const lon = d3.geoCentroid(fc)[0];
+  let p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(w - 60, fc);
+  let [[x0,y0],[x1,y1]] = d3.geoPath(p).bounds(fc);
+  let h = Math.max(260, Math.min(w * 0.8, (y1 - y0) + 60));
+  p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitExtent([[30,30],[w-30,h-30]], fc);
+  const d = devicePixelRatio || 1;
+  cvs.style.height = h + "px"; cvs.width = Math.round(w*d); cvs.height = Math.round(h*d);
+  const c2 = cvs.getContext("2d"); c2.setTransform(d,0,0,d,0,0);
+  const path = d3.geoPath(p, c2);
+  c2.fillStyle = TT.ocean; c2.fillRect(0,0,w,h);
+  c2.beginPath(); path(grat); c2.strokeStyle = TT.grat; c2.lineWidth = 1; c2.stroke();
+  c2.beginPath(); for (const f of feats) path(f); c2.fillStyle = TT.land; c2.fill(); c2.strokeStyle = TT.border; c2.lineWidth = .7; c2.stroke();
+  const tint = TT.hi;
+  c2.globalAlpha = .28;
+  for (const cc of S.test.nums){ const f = featBy.get(cc); if (f){ c2.beginPath(); path(f); c2.fillStyle = tint; c2.fill(); } }
+  c2.globalAlpha = 1;
+  for (const cc of S.test.nums){ const f = featBy.get(cc); if (f){ c2.beginPath(); path(f); c2.strokeStyle = TT.ink; c2.lineWidth = .9; c2.stroke(); } }
+  // 番号：重ならないように少しずらし、ずれたら引き出し線
+  const nodes = S.test.nums.map((cc, i) => {
+    const f = featBy.get(cc); let [x,y] = f ? path.centroid(f.main) : p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
+    if (!isFinite(x)) [x,y] = p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
+    return { i, cc, ax:x, ay:y, x, y };
+  });
+  const sim = d3.forceSimulation(nodes).force("x", d3.forceX(n => n.ax).strength(.25)).force("y", d3.forceY(n => n.ay).strength(.25))
+    .force("c", d3.forceCollide(14)).stop();
+  for (let k = 0; k < 250; k++) sim.tick();
+  for (const nd of nodes){ nd.x = Math.max(14, Math.min(w-14, nd.x)); nd.y = Math.max(14, Math.min(h-14, nd.y)); }
+  const g = S.test.graded;
+  for (const nd of nodes){
+    if (Math.hypot(nd.x-nd.ax, nd.y-nd.ay) > 8){
+      c2.beginPath(); c2.moveTo(nd.ax, nd.ay); c2.lineTo(nd.x, nd.y); c2.strokeStyle = TT.ink; c2.lineWidth = 1.2; c2.stroke();
+      c2.beginPath(); c2.arc(nd.ax, nd.ay, 2.5, 0, Math.PI*2); c2.fillStyle = TT.ink; c2.fill();
+    }
+  }
+  c2.textAlign = "center"; c2.textBaseline = "middle";
+  for (const nd of nodes){
+    let fill = TT.ink;
+    if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
+      fill = okN && okF ? getComputedStyle(document.documentElement).getPropertyValue("--ok").trim() : getComputedStyle(document.documentElement).getPropertyValue("--ng").trim(); }
+    c2.beginPath(); c2.arc(nd.x, nd.y, 12, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
+    c2.lineWidth = 2; c2.strokeStyle = TT.panel; c2.stroke();
+    c2.font = `700 ${nd.i >= 9 ? 12 : 13}px "IBM Plex Mono",ui-monospace,monospace`; c2.fillStyle = TT.panel;
+    c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
+  }
+}
+function gradeTest(){
+  const T2 = S.test; T2.graded = true;
+  T2.nums.forEach((cc, i) => {
+    const ok = nameOk(cc, T2.name[i]) && T2.flag[i] !== undefined && T2.flag[i] !== "" && +T2.flag[i] === T2.flags.indexOf(cc);
+    S.saved.p[cc] = ok ? Math.max(0, lv(cc)) + 1 : 0;
+  });
+  save(); renderMeter(); renderTest(); window.scrollTo({top: 0, behavior: reduce ? "auto" : "smooth"});
+}
+new ResizeObserver(() => { if (S.saved.mode === "test") drawTestMap(); }).observe(document.getElementById("right"));
+
+function render(){
+  renderTabs(); renderChips(); renderMeter();
+  const isTest = S.saved.mode === "test";
+  $("globeSec").hidden = isTest; document.querySelector("main").classList.toggle("solo", isTest);
+  if (isTest){ renderTest(); return; }
+  if (S.saved.mode === "browse"){ if (S.saved.region !== "all" && !inPool(S.sel)) S.sel = pool()[0].c; renderBrowse(); if (feats.length) refreshGlobe(); }
+  else { S.q = null; S.recent = []; next(); }
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.mode){ S.saved.mode = t.dataset.mode; save(); render(); }
+  else if (t.dataset.r){ S.saved.region = t.dataset.r; S.saved.from = 1; S.saved.to = t.dataset.r === "all" ? 197 : regionList(t.dataset.r).length; save(); render(); }
+  else if (t.id === "rAll"){ S.saved.from = 1; S.saved.to = regionList(S.saved.region).length; save(); render(); }
+  else if (t.classList.contains("tile")){ S.sel = t.dataset.cc; S.saved.sel = S.sel; save();
+    document.querySelectorAll(".tile").forEach(x => x.setAttribute("aria-current", x.dataset.cc === S.sel));
+    renderInfo(S.sel); flyTo(S.sel, true); }
+  else if (t.classList.contains("choice")) answer(t.dataset.cc);
+  else if (t.id === "nextBtn") next();
+  else if (t.id === "tGrade") gradeTest();
+  else if (t.id === "tNew"){ newTest(); S.test.key = testKey(); renderTest(); }
+  else if (t.id === "tRetry"){ S.test.name = []; S.test.flag = []; S.test.graded = false; renderTest(); }
+  else if (t.id === "resetBtn"){ $("resetWrap").innerHTML = `<span class="confirm">本当に消しますか？<button id="resetYes">消す</button><button id="resetNo" style="border-color:var(--line);color:var(--muted)">やめる</button></span>`; }
+  else if (t.id === "resetYes"){ S.saved.p = {}; save(); $("resetWrap").innerHTML = `<button class="link" id="resetBtn">記録をリセット</button>`; render(); }
+  else if (t.id === "resetNo"){ $("resetWrap").innerHTML = `<button class="link" id="resetBtn">記録をリセット</button>`; }
+});
+document.addEventListener("input", e => {
+  if (e.target.id && e.target.id.startsWith("tn-")) S.test.name[+e.target.dataset.i] = e.target.value;
+});
+document.addEventListener("change", e => {
+  if (e.target.id && e.target.id.startsWith("tf-")){ S.test.flag[+e.target.dataset.i] = e.target.value; return; }
+  if (e.target.id !== "rFrom" && e.target.id !== "rTo") return;
+  let a = +$("rFrom").value, b = +$("rTo").value;
+  if (a > b) [a, b] = [b, a];
+  S.saved.from = a; S.saved.to = b; save(); render();
+});
+document.addEventListener("keydown", e => {
+  if (S.saved.mode === "browse" || S.saved.mode === "test" || !S.q || e.metaKey || e.ctrlKey || e.altKey || e.target.tagName === "SELECT") return;
+  if (!S.q.done && /^[1-4]$/.test(e.key)) answer(S.q.opts[+e.key - 1]);
+  else if (S.q.done && (e.key === "Enter" || e.key === " ") && document.activeElement?.id !== "nextBtn"){ e.preventDefault(); next(); }
+});
+render();
+</script>
