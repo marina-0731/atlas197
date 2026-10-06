@@ -111,14 +111,16 @@ main{display:grid;grid-template-columns:minmax(0,460px) minmax(0,1fr);gap:16px;a
 .link{border:0;background:none;text-decoration:underline;color:var(--muted);font-size:12px;padding:2px}
 .confirm{display:inline-flex;gap:8px;align-items:center}
 .confirm button{border:1px solid var(--ng);background:none;color:var(--ng);border-radius:6px;padding:2px 10px;font-size:12px}
-main.solo{grid-template-columns:1fr}
+main.solo{grid-template-columns:minmax(0,1fr)}
 .tab.test{border-color:var(--hi);color:var(--hi)}
 .tab.test[aria-pressed="true"]{background:var(--hi);color:var(--hi-ink);border-color:var(--hi)}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px}
 .sheet h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
 .sheet .lead{margin:0;color:var(--muted);font-size:14px}
 .sheet h3{font-size:14px;letter-spacing:.08em;margin:0 0 8px;font-weight:700}
-#tmap{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:var(--ocean)}
+.tmapwrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--ocean);max-width:100%}
+#tmap{display:block}
+.tmapnote{font-size:12px;color:var(--muted);margin:-10px 0 0}
 .tcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:760px){.tcols{grid-template-columns:1fr}}
 .atable{width:100%;border-collapse:collapse;font-size:14px}
@@ -533,6 +535,7 @@ function next(){
 }
 /* ---------- テスト ---------- */
 const CIRC = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const circ = k => k < 20 ? CIRC[k] : `(${k+1})`;   // 21番以降はかっこ付き数字
 const ALIAS = { CN:["中国"], KR:["韓国"], KP:["朝鮮民主主義人民共和国"], US:["アメリカ合衆国","米国"], AE:["UAE"], GB:["英国"],
   CD:["コンゴ民主"], CF:["中央アフリカ共和国"], ZA:["南アフリカ共和国"], TR:["トルコ共和国","テュルキエ"], CZ:["チェコ共和国"], DM:["ドミニカ"] };
 const norm = s => s.normalize("NFKC").replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
@@ -540,7 +543,7 @@ const norm = s => s.normalize("NFKC").replace(/[ぁ-ゖ]/g, ch => String.fromCha
 const nameOk = (cc, s) => { const v = norm(s || ""); return !!v && [byCode.get(cc).n, ...(ALIAS[cc] || [])].some(x => norm(x) === v); };
 function newTest(){
   let P = pool().slice();
-  if (P.length > 20) P = d3.shuffle(P).slice(0, 15);
+  if (P.length > 15 && !S.saved.testAll) P = d3.shuffle(P).slice(0, 15);
   S.test = { nums: d3.shuffle(P.map(c => c.c)), flags: d3.shuffle(P.map(c => c.c)), name: [], flag: [], graded: false };
 }
 function renderTest(){
@@ -551,18 +554,26 @@ function renderTest(){
     const c = byCode.get(cc), fi = T2.flags.indexOf(cc);
     const nOk = nameOk(cc, T2.name[i]), fOk = T2.flag[i] !== undefined && T2.flag[i] !== "" && +T2.flag[i] === fi;
     if (g){ score += nOk + fOk; }
-    const opts = `<option value="">―</option>` + T2.flags.map((_, k) => `<option value="${k}" ${String(T2.flag[i]) === String(k) ? "selected" : ""}>${CIRC[k]}</option>`).join("");
+    const opts = `<option value="">―</option>` + T2.flags.map((_, k) => `<option value="${k}" ${String(T2.flag[i]) === String(k) ? "selected" : ""}>${circ(k)}</option>`).join("");
     return `<tr><td class="num">${i+1}</td>
       <td class="${g ? (nOk ? "okc" : "ngc") : ""}"><input id="tn-${i}" data-i="${i}" autocomplete="off" value="${esc(T2.name[i] || "")}" aria-label="${i+1}番の国名" ${g ? "readonly" : ""}>
         ${g && !nOk ? `<div class="res ng">正解：${esc(c.n)}</div>` : g ? `<div class="res ok">○</div>` : ""}</td>
       <td class="${g ? (fOk ? "okc" : "ngc") : ""}"><select id="tf-${i}" data-i="${i}" aria-label="${i+1}番の国旗" ${g ? "disabled" : ""}>${opts}</select>
-        ${g && !fOk ? `<div class="res ng">正解：${CIRC[fi]}</div>` : g ? `<div class="res ok">○</div>` : ""}</td></tr>`;
+        ${g && !fOk ? `<div class="res ng">正解：${circ(fi)}</div>` : g ? `<div class="res ok">○</div>` : ""}</td></tr>`;
   }).join("");
-  const bank = T2.flags.map((cc, k) => `<div><span class="cn">${CIRC[k]}</span><span class="ef" aria-label="国旗${CIRC[k]}">${byCode.get(cc).f}</span><span class="an">${g ? esc(byCode.get(cc).n) : ""}</span></div>`).join("");
-  const rangeTxt = S.saved.region === "all" ? "全世界からランダム" : `${S.saved.region} ${S.saved.from}〜${S.saved.to}番`;
+  const bank = T2.flags.map((cc, k) => `<div><span class="cn">${circ(k)}</span><span class="ef" aria-label="国旗${circ(k)}">${byCode.get(cc).f}</span><span class="an">${g ? esc(byCode.get(cc).n) : ""}</span></div>`).join("");
+  const rangeTxt = S.saved.region === "all" ? "全世界" : `${S.saved.region} ${S.saved.from}〜${S.saved.to}番`;
+  const total = pool().length;
+  const howMany = total > 15 ? `<div class="tbar" role="group" aria-label="出題数">
+      <span class="lead" style="margin:0">出題数</span>
+      <button class="chip" id="tPick15" aria-pressed="${!S.saved.testAll}">ランダム15カ国</button>
+      <button class="chip" id="tPickAll" aria-pressed="${!!S.saved.testAll}">範囲の全部（${total}カ国）</button>
+    </div>` : "";
   $("right").innerHTML = `<div class="sheet">
-    <div><h2>国旗・国名テスト</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　地図の番号の国名を書き、国旗を${CIRC[0]}〜${CIRC[n-1]}から選びましょう。ひらがなでも正解になります。</p></div>
-    <canvas id="tmap" aria-label="番号がついた地図"></canvas>
+    <div><h2>国旗・国名テスト</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　地図の番号の国名を書き、国旗を${circ(0)}〜${circ(n-1)}から選びましょう。ひらがなでも正解になります。</p></div>
+    ${howMany}
+    <div class="tmapwrap" id="tmapwrap"><canvas id="tmap" aria-label="番号がついた地図"></canvas></div>
+    ${n > 15 ? `<p class="tmapnote">国が多いので地図を大きくしています。地図は縦横にスクロールできます。</p>` : ""}
     <div class="tcols">
       <div><h3>解答らん</h3><table class="atable"><thead><tr><th>番号</th><th>国名</th><th>国旗</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div><h3>国旗</h3><div class="bank">${bank}</div></div>
@@ -574,20 +585,22 @@ function renderTest(){
     </div></div>`;
   drawTestMap();
 }
-const testKey = () => [S.saved.region, S.saved.from, S.saved.to].join("|");
+const testKey = () => [S.saved.region, S.saved.from, S.saved.to, S.saved.testAll ? "all" : "15"].join("|");
 function drawTestMap(){
   const cvs = $("tmap"); if (!cvs || !S.test) return;
-  const w = cvs.clientWidth; if (!w) return;
+  const vw = $("tmapwrap").clientWidth - 2; if (vw <= 0) return;
+  const many = S.test.nums.length > 15;
+  const w = many ? Math.max(vw, Math.min(2200, 700 + S.test.nums.length * 12)) : vw;   // 国が多いときは大きく描いてスクロール
   const TT = tok(), n = S.test.nums.length;
   const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates:[byCode.get(cc).ll[1], byCode.get(cc).ll[0]]});
   const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
   const lon = d3.geoCentroid(fc)[0];
   let p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(w - 60, fc);
   let [[x0,y0],[x1,y1]] = d3.geoPath(p).bounds(fc);
-  let h = Math.max(260, Math.min(w * 0.8, (y1 - y0) + 60));
+  let h = Math.max(260, Math.min(w * (many ? 0.7 : 0.8), (y1 - y0) + 60));
   p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitExtent([[30,30],[w-30,h-30]], fc);
-  const d = devicePixelRatio || 1;
-  cvs.style.height = h + "px"; cvs.width = Math.round(w*d); cvs.height = Math.round(h*d);
+  const d = Math.min(devicePixelRatio || 1, Math.sqrt(16e6 / (w * h)));   // iPhoneのcanvas上限をこえないように
+  cvs.style.width = w + "px"; cvs.style.height = h + "px"; cvs.width = Math.round(w*d); cvs.height = Math.round(h*d);
   const c2 = cvs.getContext("2d"); c2.setTransform(d,0,0,d,0,0);
   const path = d3.geoPath(p, c2);
   c2.fillStyle = TT.ocean; c2.fillRect(0,0,w,h);
@@ -605,7 +618,7 @@ function drawTestMap(){
     return { i, cc, ax:x, ay:y, x, y };
   });
   const sim = d3.forceSimulation(nodes).force("x", d3.forceX(n => n.ax).strength(.25)).force("y", d3.forceY(n => n.ay).strength(.25))
-    .force("c", d3.forceCollide(14)).stop();
+    .force("c", d3.forceCollide(many ? 12 : 14)).stop();
   for (let k = 0; k < 250; k++) sim.tick();
   for (const nd of nodes){ nd.x = Math.max(14, Math.min(w-14, nd.x)); nd.y = Math.max(14, Math.min(h-14, nd.y)); }
   const g = S.test.graded;
@@ -620,9 +633,9 @@ function drawTestMap(){
     let fill = TT.ink;
     if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
       fill = okN && okF ? getComputedStyle(document.documentElement).getPropertyValue("--ok").trim() : getComputedStyle(document.documentElement).getPropertyValue("--ng").trim(); }
-    c2.beginPath(); c2.arc(nd.x, nd.y, 12, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
+    c2.beginPath(); c2.arc(nd.x, nd.y, many ? 10.5 : 12, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
     c2.lineWidth = 2; c2.strokeStyle = TT.panel; c2.stroke();
-    c2.font = `700 ${nd.i >= 9 ? 12 : 13}px "IBM Plex Mono",ui-monospace,monospace`; c2.fillStyle = TT.panel;
+    c2.font = `700 ${nd.i >= 99 ? 9 : nd.i >= 9 ? 11.5 : 13}px "IBM Plex Mono",ui-monospace,monospace`; c2.fillStyle = TT.panel;
     c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
   }
 }
@@ -656,6 +669,7 @@ document.addEventListener("click", e => {
   else if (t.classList.contains("choice")) answer(t.dataset.cc);
   else if (t.id === "nextBtn") next();
   else if (t.id === "tGrade") gradeTest();
+  else if (t.id === "tPick15" || t.id === "tPickAll"){ S.saved.testAll = t.id === "tPickAll"; save(); renderTest(); }
   else if (t.id === "tNew"){ newTest(); S.test.key = testKey(); renderTest(); }
   else if (t.id === "tRetry"){ S.test.name = []; S.test.flag = []; S.test.graded = false; renderTest(); }
   else if (t.id === "resetBtn"){ $("resetWrap").innerHTML = `<span class="confirm">本当に消しますか？<button id="resetYes">消す</button><button id="resetNo" style="border-color:var(--line);color:var(--muted)">やめる</button></span>`; }
