@@ -1,6 +1,6 @@
 // オフラインでも遊べるように、アプリ本体と地図・ライブラリをキャッシュする。
 // アプリを更新したら VERSION を上げる（tools/build.py が自動で書き換える）。
-const VERSION = "20261006140141";
+const VERSION = "20261009144740";
 const CACHE = "atlas197-" + VERSION;
 const PRECACHE = [
   "./", "./index.html", "./world.json", "./manifest.webmanifest",
