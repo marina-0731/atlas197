@@ -126,6 +126,9 @@ main.solo{grid-template-columns:minmax(0,1fr)}
 .atable{width:100%;border-collapse:collapse;font-size:14px}
 .atable th{white-space:nowrap;font-size:12px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
 .atable td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.atable tr.cur td{background:color-mix(in srgb,var(--hi) 16%,transparent)}
+.atable tr.cur .num{color:var(--hi)}
+#tmap{cursor:pointer}
 .atable .num{font-family:var(--display);font-size:16px;width:34px;text-align:center}
 .atable input{width:100%;min-width:0;font:inherit;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
 .atable select{font:inherit;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 4px;width:64px}
@@ -581,7 +584,7 @@ const nameOk = (cc, s) => { const v = norm(s || ""); return !!v && [byCode.get(c
 function newTest(){
   let P = pool().slice();
   if (P.length > 15 && S.saved.pick15) P = d3.shuffle(P).slice(0, 15);   // ふだんは範囲の全部を出題
-  S.test = { nums: d3.shuffle(P.map(c => c.c)), flags: d3.shuffle(P.map(c => c.c)), name: [], flag: [], graded: false };
+  S.test = { nums: d3.shuffle(P.map(c => c.c)), flags: d3.shuffle(P.map(c => c.c)), name: [], flag: [], graded: false, focus: null, layout: null };
 }
 function renderTest(){
   if (!S.test || S.test.key !== testKey()){ newTest(); S.test.key = testKey(); }
@@ -592,7 +595,7 @@ function renderTest(){
     const nOk = nameOk(cc, T2.name[i]), fOk = T2.flag[i] !== undefined && T2.flag[i] !== "" && +T2.flag[i] === fi;
     if (g){ score += nOk + fOk; }
     const opts = `<option value="">―</option>` + T2.flags.map((_, k) => `<option value="${k}" ${String(T2.flag[i]) === String(k) ? "selected" : ""}>${circ(k)}</option>`).join("");
-    return `<tr><td class="num">${i+1}</td>
+    return `<tr class="${T2.focus === i ? "cur" : ""}"><td class="num">${i+1}</td>
       <td class="${g ? (nOk ? "okc" : "ngc") : ""}"><input id="tn-${i}" data-i="${i}" autocomplete="off" value="${esc(T2.name[i] || "")}" aria-label="${i+1}番の国名" ${g ? "readonly" : ""}>
         ${g && !nOk ? `<div class="res ng">正解：${esc(c.n)}</div>` : g ? `<div class="res ok">○</div>` : ""}</td>
       <td class="${g ? (fOk ? "okc" : "ngc") : ""}"><select id="tf-${i}" data-i="${i}" aria-label="${i+1}番の国旗" ${g ? "disabled" : ""}>${opts}</select>
@@ -610,7 +613,8 @@ function renderTest(){
     <div><h2>国旗・国名テスト</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　地図の番号の国名を書き、国旗を${circ(0)}〜${circ(n-1)}から選びましょう。ひらがなでも正解になります。</p></div>
     ${howMany}
     <div class="tmapwrap" id="tmapwrap"><canvas id="tmap" aria-label="番号がついた地図"></canvas></div>
-    ${bigMap() ? `<p class="tmapnote">${n > 20 ? "国が多い" : "小さな島国が多い"}ので地図を大きくしています。地図は縦横にスクロールできます。小さな島国は丸で囲んであります。</p>` : ""}
+    <p class="tmapnote" id="tmapnote" hidden>国どうしが近いので地図を大きくしています。地図は縦横にスクロールできます。</p>
+    <p class="tmapnote">小さな国は丸で囲み、番号から線でつないでいます。解答らんを選ぶか地図の番号をタップすると、その国がオレンジ色に光ります。</p>
     <div class="tcols">
       <div><h3>解答らん</h3><table class="atable"><thead><tr><th>番号</th><th>国名</th><th>国旗</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div><h3>国旗</h3><div class="bank">${bank}</div></div>
@@ -622,20 +626,24 @@ function renderTest(){
     </div></div>`;
   drawTestMap();
 }
-const isIsland = cc => !featBy.get(cc) || d3.geoArea(featBy.get(cc)) < 1e-4;
-const islandCount = () => S.test.nums.filter(isIsland).length;
-const bigMap = () => S.test.nums.length > 20 || islandCount() >= 5;
 const testKey = () => [S.saved.region, S.saved.from, S.saved.to, S.saved.pick15 ? "15" : "all"].join("|");
 function drawTestMap(){
   const cvs = $("tmap"); if (!cvs || !S.test) return;
   const vw = $("tmapwrap").clientWidth - 2; if (vw <= 0) return;
-  const many = S.test.nums.length > 20;   // 20カ国までは画面の幅におさめる
-  // 国が多いとき・小さな島国が多いとき（オセアニアなど）は大きく描いてスクロール
-  const w = many ? Math.max(vw, Math.min(2200, 700 + S.test.nums.length * 12)) : islandCount() >= 5 ? Math.max(vw, 680) : vw;
-  const TT = tok(), n = S.test.nums.length;
+  const many = S.test.nums.length > 20;
+  const TT = tok(), css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates:[byCode.get(cc).ll[1], byCode.get(cc).ll[0]]});
   const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
   const lon = d3.geoCentroid(fc)[0];
+  // 国どうしが近すぎるとき（中東・カリブ海・太平洋の島など）は、番号がすき間に入るまで地図を大きくしてスクロール表示
+  const p0 = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(vw - 60, fc);
+  const pts = S.test.nums.map(cc => p0([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]));
+  const nn = pts.map((a, i) => d3.min(pts, (b, j) => i === j ? Infinity : Math.hypot(a[0]-b[0], a[1]-b[1])));
+  const crowd = Math.max(1, Math.min(3.5, 32 / Math.max(1, d3.quantile(nn.slice().sort(d3.ascending), .15))));
+  let w = Math.round(Math.min(2200, vw * crowd));
+  if (many) w = Math.max(w, Math.min(2200, 700 + S.test.nums.length * 12));
+  if (w < vw + 40) w = vw;   // ほんの少しだけ大きくするならスクロールなしでいい
+  if ($("tmapnote")) $("tmapnote").hidden = w === vw;
   let p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(w - 60, fc);
   let [[x0,y0],[x1,y1]] = d3.geoPath(p).bounds(fc);
   let h = Math.max(260, Math.min(w * (many ? 0.7 : 0.8), (y1 - y0) + 60));
@@ -644,53 +652,110 @@ function drawTestMap(){
   cvs.style.width = w + "px"; cvs.style.height = h + "px"; cvs.width = Math.round(w*d); cvs.height = Math.round(h*d);
   const c2 = cvs.getContext("2d"); c2.setTransform(d,0,0,d,0,0);
   const path = d3.geoPath(p, c2);
+  const BR = many ? 10.5 : 12, RING = 13, focus = S.test.focus;
+
+  // 番号の置き場所（同じ大きさの地図なら前回の配置をそのまま使う）
+  if (!S.test.layout || S.test.layout.w !== w || S.test.layout.h !== h) S.test.layout = { w, h, nodes: layoutBadges(path, p, w, h, BR, RING) };
+  const nodes = S.test.layout.nodes;
+
   c2.fillStyle = TT.ocean; c2.fillRect(0,0,w,h);
   c2.beginPath(); path(grat); c2.strokeStyle = TT.grat; c2.lineWidth = 1; c2.stroke();
   c2.beginPath(); for (const f of feats) path(f); c2.fillStyle = TT.land; c2.fill(); c2.strokeStyle = TT.border; c2.lineWidth = .7; c2.stroke();
-  const tint = TT.hi;
-  c2.globalAlpha = .28;
-  for (const cc of S.test.nums){ const f = featBy.get(cc); if (f){ c2.beginPath(); path(f); c2.fillStyle = tint; c2.fill(); } }
-  c2.globalAlpha = 1;
-  for (const cc of S.test.nums){ const f = featBy.get(cc); if (f){ c2.beginPath(); path(f); c2.strokeStyle = TT.ink; c2.lineWidth = .9; c2.stroke(); } }
-  // 番号：重ならないように少しずらし、ずれたら引き出し線
-  const BR = many ? 10.5 : 12, RING = 13;
+  // 出題の国：うすいオレンジ。選んでいる番号の国は濃く
+  for (const nd of nodes){ const f = featBy.get(nd.cc); if (!f) continue;
+    c2.beginPath(); path(f); c2.globalAlpha = nd.i === focus ? .85 : .28; c2.fillStyle = TT.hi; c2.fill(); c2.globalAlpha = 1;
+    c2.strokeStyle = TT.ink; c2.lineWidth = nd.i === focus ? 1.8 : .9; c2.stroke(); }
+  // 小さな島国の丸印
+  for (const nd of nodes) if (nd.tiny){
+    c2.beginPath(); c2.arc(nd.ax, nd.ay, RING, 0, Math.PI*2);
+    c2.globalAlpha = nd.i === focus ? .5 : .2; c2.fillStyle = TT.hi; c2.fill(); c2.globalAlpha = 1;
+    c2.lineWidth = nd.i === focus ? 3 : 2; c2.strokeStyle = TT.hi; c2.stroke();
+  }
+  // 引き出し線：白いふち取りの上に濃い線、国の側の端に点
+  const lines = nodes.filter(nd => nd.small || Math.hypot(nd.x-nd.ax, nd.y-nd.ay) > 4);
+  const seg = nd => { const dist = Math.max(1, Math.hypot(nd.x-nd.ax, nd.y-nd.ay)), k = nd.tiny ? RING / dist : 0;
+    return [nd.ax + (nd.x-nd.ax)*k, nd.ay + (nd.y-nd.ay)*k]; };
+  c2.lineCap = "round";
+  for (const pass of [0, 1]) for (const nd of lines){
+    if (nd.tiny && Math.hypot(nd.x-nd.ax, nd.y-nd.ay) <= RING + BR) continue;
+    const [sx, sy] = seg(nd), on = nd.i === focus;
+    c2.beginPath(); c2.moveTo(sx, sy); c2.lineTo(nd.x, nd.y);
+    if (pass === 0){ c2.strokeStyle = TT.panel; c2.lineWidth = on ? 6 : 4.5; }
+    else { c2.strokeStyle = on ? TT.hi : TT.ink; c2.lineWidth = on ? 3 : 1.8; }
+    c2.stroke();
+  }
+  for (const nd of lines) if (!nd.tiny){
+    c2.beginPath(); c2.arc(nd.ax, nd.ay, nd.i === focus ? 5 : 4, 0, Math.PI*2); c2.fillStyle = TT.panel; c2.fill();
+    c2.beginPath(); c2.arc(nd.ax, nd.ay, nd.i === focus ? 3.2 : 2.6, 0, Math.PI*2); c2.fillStyle = nd.i === focus ? TT.hi : TT.ink; c2.fill();
+  }
+  // 番号
+  c2.textAlign = "center"; c2.textBaseline = "middle";
+  const g = S.test.graded;
+  for (const nd of nodes){
+    const on = nd.i === focus;
+    let fill = on ? TT.hi : TT.ink;
+    if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
+      fill = okN && okF ? css("--ok") : css("--ng"); }
+    const r = on ? BR + 3 : BR;
+    c2.beginPath(); c2.arc(nd.x, nd.y, r, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
+    c2.lineWidth = on ? 3 : 2; c2.strokeStyle = on && g ? TT.hi : TT.panel; c2.stroke();
+    c2.font = `700 ${(nd.i >= 99 ? 9 : nd.i >= 9 ? 11.5 : 13) + (on ? 2 : 0)}px "IBM Plex Mono",ui-monospace,monospace`;
+    c2.fillStyle = on && !g ? css("--hi-ink") : TT.panel;
+    c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
+  }
+}
+
+// 番号を、国をかくさず・線が交差しにくい位置に置く
+function layoutBadges(path, p, w, h, BR, RING){
   const nodes = S.test.nums.map((cc, i) => {
     const f = featBy.get(cc); let [x,y] = f ? path.centroid(f.main) : p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
     if (!isFinite(x)) [x,y] = p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
-    const small = !f || path.area(f) < 180;   // 小さな島国：島に丸印をつけ、番号は横に出す
-    return { i, cc, ax:x, ay:y, small, r: BR + 1.5, x: small ? x + 22 : x, y: small ? y - 18 : y };
+    const a = f ? path.area(f) : 0;
+    // tiny：島国など点のような国 → 丸で囲む。small：番号で隠れてしまう国 → 番号を外に出して線で指す
+    return { i, cc, ax:x, ay:y, tiny: a < 180, small: a < 1500, r: BR + 2 };
   });
-  // 丸印は動かない障害物にして、番号が島を隠さないようにする
-  const rings = nodes.filter(nd => nd.small).map(nd => ({ fx: nd.ax, fy: nd.ay, x: nd.ax, y: nd.ay, r: RING + 1, ring: true }));
-  for (const nd of rings){ c2.beginPath(); c2.arc(nd.x, nd.y, RING, 0, Math.PI*2); c2.fillStyle = tint; c2.globalAlpha = .22; c2.fill(); c2.globalAlpha = 1;
-    c2.lineWidth = 2; c2.strokeStyle = tint; c2.stroke(); }
-  const all = [...nodes, ...rings];
-  const sim = d3.forceSimulation(all).force("x", d3.forceX(n => n.ring ? n.fx : n.ax).strength(n => n.ring ? 0 : .25))
-    .force("y", d3.forceY(n => n.ring ? n.fy : n.ay).strength(n => n.ring ? 0 : .25))
-    .force("c", d3.forceCollide(n => n.r)).stop();
-  for (let k = 0; k < 250; k++) sim.tick();
-  for (const nd of nodes){ nd.x = Math.max(14, Math.min(w-14, nd.x)); nd.y = Math.max(14, Math.min(h-14, nd.y)); }
-  const g = S.test.graded;
+  // 島国の番号は、出題の国ぜんたいの中心から外向きに出す（線が放射状に広がって交差しにくい）
+  const mx = d3.mean(nodes, n => n.ax), my = d3.mean(nodes, n => n.ay);
   for (const nd of nodes){
-    const dist = Math.hypot(nd.x-nd.ax, nd.y-nd.ay);
-    if (nd.small){   // 丸印のふちから番号へ線を引く
-      const k = RING / Math.max(dist, 1);
-      c2.beginPath(); c2.moveTo(nd.ax + (nd.x-nd.ax)*k, nd.ay + (nd.y-nd.ay)*k); c2.lineTo(nd.x, nd.y); c2.strokeStyle = TT.ink; c2.lineWidth = 1.2; c2.stroke();
-    } else if (dist > 8){
-      c2.beginPath(); c2.moveTo(nd.ax, nd.ay); c2.lineTo(nd.x, nd.y); c2.strokeStyle = TT.ink; c2.lineWidth = 1.2; c2.stroke();
-      c2.beginPath(); c2.arc(nd.ax, nd.ay, 2.5, 0, Math.PI*2); c2.fillStyle = TT.ink; c2.fill();
+    if (!nd.small){ nd.x = nd.ax; nd.y = nd.ay; continue; }
+    let dx = nd.ax - mx, dy = nd.ay - my; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+    if (L < 2){ dx = .7; dy = -.7; }
+    nd.x = nd.ax + dx * (RING + BR + 12); nd.y = nd.ay + dy * (RING + BR + 12);
+  }
+  // 丸印は動かない障害物にして、番号が島をかくさないようにする
+  const rings = nodes.filter(nd => nd.small).map(nd => ({ fx: nd.ax, fy: nd.ay, x: nd.ax, y: nd.ay, r: RING + 3, ring: true }));
+  const sim = d3.forceSimulation([...nodes, ...rings])
+    .force("x", d3.forceX(n => n.ring ? n.fx : n.small ? n.x : n.ax).strength(n => n.ring ? 0 : n.small ? .05 : .3))
+    .force("y", d3.forceY(n => n.ring ? n.fy : n.small ? n.y : n.ay).strength(n => n.ring ? 0 : n.small ? .05 : .3))
+    .force("c", d3.forceCollide(n => n.r).iterations(2)).stop();
+  for (let k = 0; k < 300; k++) sim.tick();
+  for (const nd of nodes){ nd.x = Math.max(BR + 3, Math.min(w - BR - 3, nd.x)); nd.y = Math.max(BR + 3, Math.min(h - BR - 3, nd.y)); }
+  // 交差している線があれば、2つの番号の位置を入れかえる
+  const cross = (a, b) => {
+    const o = (p, q, r) => Math.sign((q[0]-p[0])*(r[1]-p[1]) - (q[1]-p[1])*(r[0]-p[0]));
+    const A = [a.ax, a.ay], B = [a.x, a.y], C = [b.ax, b.ay], D = [b.x, b.y];
+    return o(A,B,C) !== o(A,B,D) && o(C,D,A) !== o(C,D,B);
+  };
+  const moved = nodes.filter(nd => nd.small || Math.hypot(nd.x-nd.ax, nd.y-nd.ay) > 4);
+  for (let pass = 0; pass < 4; pass++){
+    let swapped = false;
+    for (let a = 0; a < moved.length; a++) for (let b = a + 1; b < moved.length; b++){
+      const A = moved[a], B = moved[b];
+      if (!cross(A, B)) continue;
+      const before = Math.hypot(A.x-A.ax, A.y-A.ay) + Math.hypot(B.x-B.ax, B.y-B.ay);
+      const after = Math.hypot(B.x-A.ax, B.y-A.ay) + Math.hypot(A.x-B.ax, A.y-B.ay);
+      if (after <= before * 1.3){ [A.x, B.x] = [B.x, A.x]; [A.y, B.y] = [B.y, A.y]; swapped = true; }
     }
+    if (!swapped) break;
   }
-  c2.textAlign = "center"; c2.textBaseline = "middle";
-  for (const nd of nodes){
-    let fill = TT.ink;
-    if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
-      fill = okN && okF ? getComputedStyle(document.documentElement).getPropertyValue("--ok").trim() : getComputedStyle(document.documentElement).getPropertyValue("--ng").trim(); }
-    c2.beginPath(); c2.arc(nd.x, nd.y, BR, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
-    c2.lineWidth = 2; c2.strokeStyle = TT.panel; c2.stroke();
-    c2.font = `700 ${nd.i >= 99 ? 9 : nd.i >= 9 ? 11.5 : 13}px "IBM Plex Mono",ui-monospace,monospace`; c2.fillStyle = TT.panel;
-    c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
-  }
+  return nodes;
+}
+// 番号をえらぶ：地図と解答らんの行を光らせる
+function setTestFocus(i){
+  if (!S.test || S.test.focus === i) return;
+  S.test.focus = i;
+  document.querySelectorAll(".atable tbody tr").forEach((tr, k) => tr.classList.toggle("cur", k === i));
+  drawTestMap();
 }
 function gradeTest(){
   const T2 = S.test; T2.graded = true;
@@ -728,6 +793,21 @@ document.addEventListener("click", e => {
   else if (t.id === "resetBtn"){ $("resetWrap").innerHTML = `<span class="confirm">本当に消しますか？<button id="resetYes">消す</button><button id="resetNo" style="border-color:var(--line);color:var(--muted)">やめる</button></span>`; }
   else if (t.id === "resetYes"){ S.saved.p = {}; save(); $("resetWrap").innerHTML = `<button class="link" id="resetBtn">記録をリセット</button>`; render(); }
   else if (t.id === "resetNo"){ $("resetWrap").innerHTML = `<button class="link" id="resetBtn">記録をリセット</button>`; }
+});
+document.addEventListener("focusin", e => {
+  const id = e.target.id || "";
+  if (/^t[nf]-\d+$/.test(id)) setTestFocus(+e.target.dataset.i);
+});
+// 地図の番号（または国の点）をタップしたとき。スクロールのときは click が来ないので反応しない
+document.addEventListener("click", e => {
+  if (e.target.id !== "tmap" || !S.test || !S.test.layout) return;
+  const r = e.target.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  let best = null, bd = 22;
+  for (const nd of S.test.layout.nodes){
+    const dd = Math.min(Math.hypot(nd.x - x, nd.y - y), Math.hypot(nd.ax - x, nd.ay - y));
+    if (dd < bd){ bd = dd; best = nd; }
+  }
+  if (best) setTestFocus(best.i);
 });
 document.addEventListener("input", e => {
   if (e.target.id && e.target.id.startsWith("tn-")) S.test.name[+e.target.dataset.i] = e.target.value;
