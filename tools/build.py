@@ -36,7 +36,13 @@ img{{max-width:100%}}
 <body>
 """
 tail = """<script>
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+if ("serviceWorker" in navigator){
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // 新しい版のservice workerに切りかわったら、一度だけ読みこみ直して新しい版にする
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded){ reloaded = true; location.reload(); } });
+}
 </script>
 </body>
 </html>
