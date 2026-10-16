@@ -215,7 +215,7 @@ const REGIONS = ["アジア","ヨーロッパ","アフリカ","北アメリカ",
 const byCode = new Map(C.map(c => [c.c, c]));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* 位置の覚え方（まずアジア） */
+/* 位置の覚え方（アジア・オセアニア） */
 const WHERE = {
 AZ:"カスピ海の西岸。コーカサス3国（ジョージア・アルメニア・アゼルバイジャン）のいちばん東。南はイラン。",
 AF:"海のない内陸国。西はイラン、東と南はパキスタン、北は中央アジアの国々。",
@@ -262,7 +262,24 @@ MV:"インドとスリランカの南西、インド洋に点々と続くサン�
 MN:"ロシアと中国にはさまれた内陸国。",
 JO:"死海の東。西はイスラエル、北はシリア、東はイラク、南はサウジアラビア。",
 LA:"インドシナ半島のまん中の内陸国。東はベトナム、西はタイ、南はカンボジア、北は中国。",
-LB:"地中海の東岸の小国。北と東はシリア、南はイスラエル。"
+LB:"地中海の東岸の小国。北と東はシリア、南はイスラエル。",
+/* オセアニア */
+AU:"南半球の大陸がまるごと1つの国。北はインドネシアとパプアニューギニア、南東の海の先にニュージーランド。",
+KI:"太平洋のまん中、赤道と日付変更線のまわりに島が広く散らばる。ナウルの東、ツバルの北。",
+CK:"南太平洋の東のほう。ニウエのさらに東、サモア・トンガの東南東。",
+WS:"南太平洋、フィジーの北東。南はトンガ、西はツバル・ウォリス。",
+SB:"パプアニューギニアの東に、島が南東へ向かって2列に並ぶ。その先（南東）はバヌアツ。",
+TV:"フィジーの北、キリバスの南にある小さなサンゴの島々。",
+TO:"フィジーの東、サモアの南。島が南北に並ぶ。東にニウエ。",
+NR:"赤道のすぐ南、キリバスの西にある島が1つだけの小さな国。",
+NU:"トンガの東、クック諸島の西にある島が1つの国。",
+NZ:"オーストラリアの南東、タスマン海をはさむ。北島と南島の2つの大きな島。",
+VU:"ソロモン諸島の南東、フィジーの西。島がY字の形に並ぶ。南西にニューカレドニア（フランス領）。",
+PG:"ニューギニア島の東半分と、その東の島々。西半分はインドネシア、南の海をはさんでオーストラリア。",
+PW:"フィリピンの東、ミクロネシアのいちばん西の島々。",
+FJ:"南太平洋の中心あたり。西はバヌアツ、東はトンガ。大きな2つの島がある。",
+MH:"ミクロネシア連邦の東、キリバスの北。赤道の北にサンゴの島が2列に並ぶ。",
+FM:"パラオとマーシャル諸島の間。赤道の北に島が東西に長く並ぶ。グアムの南東。"
 };
 const SEAS = [["太平洋",20,165],["太平洋",-20,-130],["大西洋",25,-40],["大西洋",-20,-15],["インド洋",-18,78],
   ["カスピ海",42,50.5],["黒海",43.3,34.5],["地中海",34.5,19],["紅海",20,38.4],["ペルシャ湾",27.3,51.2],["アラビア海",15,64],
@@ -322,9 +339,23 @@ function draw(){
   const boxes = [];
   const hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
   const inDisc = b => [[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]].every(([x,y]) => Math.hypot(x-w/2, y-w/2) < R-3);
-  if (tf && !G.hide.has(G.target)){
-    const [x,y] = path.centroid(tf.main);
-    if (isFinite(x)){ ctx.font = labelFont(15, 700); const tw = ctx.measureText(byCode.get(G.target).n).width; boxes.push([x-tw/2-3, y-11, x+tw/2+3, y+11]); }
+  // 国名の位置：大きな国は国の中心、小さな島国は印の下
+  const SMALL = 70;
+  // ラベルは「画面に見えている部分」だけで中心と面積を計算する（拡大中に名前が画面の外へ出ないように）
+  const visAng = Math.min(90, Math.asin(Math.min(1, 1/G.scale)) * 180/Math.PI * 0.96);
+  const lpath = d3.geoPath(d3.geoOrthographic().translate([w/2, w/2]).scale(R*G.scale).rotate(G.rot).clipAngle(visAng));
+  function labelAt(cc, isT){
+    const f = featBy.get(cc), c = byCode.get(cc);
+    const a = f ? lpath.area(f) : 0;
+    // 丸印がつく国（面積400未満）は名前を印の下に
+    if (a >= (isT ? 400 : SMALL)){ const [x,y] = lpath.centroid(a > 4 * lpath.area(f.main) ? f : f.main); return isFinite(x) ? {x, y, a, small:false} : null; }
+    const [x,y] = p([c.ll[1], c.ll[0]]);
+    return {x, y: y + (isT ? 28 : 13), dot: [x,y], a, small:true};
+  }
+  if (G.target && !G.hide.has(G.target) && d3.geoDistance([byCode.get(G.target).ll[1], byCode.get(G.target).ll[0]], center) < 1.35){
+    const at = labelAt(G.target, true);
+    if (at){ ctx.font = labelFont(15, 700); const tw = ctx.measureText(byCode.get(G.target).n).width; boxes.push([at.x-tw/2-3, at.y-11, at.x+tw/2+3, at.y+11]); }
+    if (at && at.small) boxes.push([at.dot[0]-18, at.dot[1]-18, at.dot[0]+18, at.dot[1]+18]);   // 丸印の上に名前を重ねない
   }
   for (const [nm, la, lo] of SEAS){
     if (d3.geoDistance([lo,la], center) > 1.35) continue;
@@ -339,27 +370,29 @@ function draw(){
 
   /* 国名ラベル：ターゲット→面積の大きい順、重なるものは省略 */
   const L = [];
-  for (const f of feats){
-    const cc = codeOf.get(f); if (!cc || G.hide.has(cc)) continue;
-    const c = byCode.get(cc), anchor = [c.ll[1], c.ll[0]];
-    if (d3.geoDistance(anchor, center) > 1.35) continue;
-    const a = path.area(f.main);
+  for (const c of C){
+    const cc = c.c; if (G.hide.has(cc)) continue;
+    if (d3.geoDistance([c.ll[1], c.ll[0]], center) > 1.35) continue;
     const isT = cc === G.target;
-    if (!isT && a < 70) continue;
-    let [x,y] = path.centroid(f.main); if (!isFinite(x)) continue;
-    L.push({cc, x, y, a: isT ? 1e12 : a, isT});
+    const at = labelAt(cc, isT); if (!at) continue;
+    if (!isT && at.small && G.scale < 2) continue;   // 島国の名前は近づいたときだけ
+    L.push({cc, ...at, a: isT ? 1e12 : at.small ? 50 : at.a, isT});
   }
   L.sort((u,v) => v.a - u.a);
   for (const l of L){
-    const nm = byCode.get(l.cc).n, sz = l.isT ? 15 : l.a > 6000 ? 13 : 11.5;
+    const nm = byCode.get(l.cc).n, sz = l.isT ? 15 : l.a > 6000 ? 13 : l.small ? 10.5 : 11.5;
     ctx.font = labelFont(sz, l.isT ? 700 : 500);
     const tw = ctx.measureText(nm).width;
-    const y = l.y;
-    const b = [l.x - tw/2 - 3, y - sz/2 - 3, l.x + tw/2 + 3, y + sz/2 + 3];
+    let x = l.x, y = l.y;
+    const box = () => [x - tw/2 - 3, y - sz/2 - 3, x + tw/2 + 3, y + sz/2 + 3];
+    // 地球儀のふちにかかる名前は、少しずつ地球儀の内側へずらす
+    for (let k = 0; k < 6 && !inDisc(box()) && !l.small; k++){ x += (w/2 - x) * .15; y += (w/2 - y) * .15; }
+    const b = box();
     if (!l.isT && (!inDisc(b) || hit(b))) continue;
     boxes.push(b);
-    ctx.lineJoin = "round"; ctx.lineWidth = 3.5; ctx.strokeStyle = l.isT ? T.panel : T.land; ctx.strokeText(nm, l.x, y);
-    ctx.fillStyle = l.isT ? T.ink : T.muted; ctx.fillText(nm, l.x, y);
+    if (l.small && !l.isT){ ctx.beginPath(); ctx.arc(l.dot[0], l.dot[1], 2.5, 0, Math.PI*2); ctx.fillStyle = T.muted; ctx.fill(); }
+    ctx.lineJoin = "round"; ctx.lineWidth = 3.5; ctx.strokeStyle = l.isT ? T.panel : T.land; ctx.strokeText(nm, x, y);
+    ctx.fillStyle = l.isT ? T.ink : T.muted; ctx.fillText(nm, x, y);
   }
   ctx.restore();
   ctx.beginPath(); ctx.arc(w/2,w/2,R,0,Math.PI*2); ctx.strokeStyle = T.border; ctx.lineWidth = 1; ctx.stroke();
@@ -439,7 +472,11 @@ fetch("world.json").then(r => r.json()).then(topo => {
       f.main = best;
     } else f.main = f.geometry;
     const cc = f.id ? byNum.get(f.id) : (f.properties.name === "Kosovo" ? "XK" : null);
-    if (cc){ featBy.set(cc, f); codeOf.set(f, cc); }
+    // 同じ番号の小さな属領（例：オーストラリアとアシュモア・カルティエ諸島）があるときは大きいほうを使う
+    if (cc && (!featBy.has(cc) || d3.geoArea(featBy.get(cc)) < d3.geoArea(f))){
+      if (featBy.has(cc)) codeOf.delete(featBy.get(cc));
+      featBy.set(cc, f); codeOf.set(f, cc);
+    }
   }
   feats = feats.filter(f => f.geometry);
   refreshGlobe(true);
@@ -512,7 +549,7 @@ function renderQuiz(){
   const q = S.q, a = byCode.get(q.ans), mode = S.saved.mode;
   const label = { flag: "この国旗の国は？", map: "オレンジの国はどこ？", name: "この国の国旗は？" }[mode];
   const prompt = mode === "flag" ? `<div class="bigflag" aria-label="国旗">${a.f}</div>`
-    : mode === "map" ? `<div class="bigname" style="font-size:22px;color:var(--muted)">左の地球儀を見て答えよう<span class="sub">まわりの国名と海の名前がヒントです</span></div>`
+    : mode === "map" ? `<div class="bigname" style="font-size:22px;color:var(--muted)">地球儀を見て答えよう<span class="sub">まわりの国名と海の名前がヒントです</span></div>`
     : `<div class="bigname">${esc(a.n)}<span class="sub">${esc(a.en)}</span></div>`;
   const isFlag = mode === "name";
   const opts = q.opts.map((cc, i) => { const c = byCode.get(cc);
@@ -595,7 +632,7 @@ function renderTest(){
     <div><h2>国旗・国名テスト</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　地図の番号の国名を書き、国旗を${circ(0)}〜${circ(n-1)}から選びましょう。ひらがなでも正解になります。</p></div>
     ${howMany}
     <div class="tmapwrap" id="tmapwrap"><canvas id="tmap" aria-label="番号がついた地図"></canvas></div>
-    ${n > 15 ? `<p class="tmapnote">国が多いので地図を大きくしています。地図は縦横にスクロールできます。</p>` : ""}
+    ${bigMap() ? `<p class="tmapnote">${n > 20 ? "国が多い" : "小さな島国が多い"}ので地図を大きくしています。地図は縦横にスクロールできます。小さな島国は丸で囲んであります。</p>` : ""}
     <div class="tcols">
       <div><h3>解答らん</h3><table class="atable"><thead><tr><th>番号</th><th>国名</th><th>国旗</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div><h3>国旗</h3><div class="bank">${bank}</div></div>
@@ -607,12 +644,16 @@ function renderTest(){
     </div></div>`;
   drawTestMap();
 }
+const isIsland = cc => !featBy.get(cc) || d3.geoArea(featBy.get(cc)) < 1e-4;
+const islandCount = () => S.test.nums.filter(isIsland).length;
+const bigMap = () => S.test.nums.length > 20 || islandCount() >= 5;
 const testKey = () => [S.saved.region, S.saved.from, S.saved.to, S.saved.pick15 ? "15" : "all"].join("|");
 function drawTestMap(){
   const cvs = $("tmap"); if (!cvs || !S.test) return;
   const vw = $("tmapwrap").clientWidth - 2; if (vw <= 0) return;
-  const many = S.test.nums.length > 15;
-  const w = many ? Math.max(vw, Math.min(2200, 700 + S.test.nums.length * 12)) : vw;   // 国が多いときは大きく描いてスクロール
+  const many = S.test.nums.length > 20;   // 20カ国までは画面の幅におさめる
+  // 国が多いとき・小さな島国が多いとき（オセアニアなど）は大きく描いてスクロール
+  const w = many ? Math.max(vw, Math.min(2200, 700 + S.test.nums.length * 12)) : islandCount() >= 5 ? Math.max(vw, 680) : vw;
   const TT = tok(), n = S.test.nums.length;
   const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates:[byCode.get(cc).ll[1], byCode.get(cc).ll[0]]});
   const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
@@ -634,18 +675,30 @@ function drawTestMap(){
   c2.globalAlpha = 1;
   for (const cc of S.test.nums){ const f = featBy.get(cc); if (f){ c2.beginPath(); path(f); c2.strokeStyle = TT.ink; c2.lineWidth = .9; c2.stroke(); } }
   // 番号：重ならないように少しずらし、ずれたら引き出し線
+  const BR = many ? 10.5 : 12, RING = 13;
   const nodes = S.test.nums.map((cc, i) => {
     const f = featBy.get(cc); let [x,y] = f ? path.centroid(f.main) : p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
     if (!isFinite(x)) [x,y] = p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
-    return { i, cc, ax:x, ay:y, x, y };
+    const small = !f || path.area(f) < 180;   // 小さな島国：島に丸印をつけ、番号は横に出す
+    return { i, cc, ax:x, ay:y, small, r: BR + 1.5, x: small ? x + 22 : x, y: small ? y - 18 : y };
   });
-  const sim = d3.forceSimulation(nodes).force("x", d3.forceX(n => n.ax).strength(.25)).force("y", d3.forceY(n => n.ay).strength(.25))
-    .force("c", d3.forceCollide(many ? 12 : 14)).stop();
+  // 丸印は動かない障害物にして、番号が島を隠さないようにする
+  const rings = nodes.filter(nd => nd.small).map(nd => ({ fx: nd.ax, fy: nd.ay, x: nd.ax, y: nd.ay, r: RING + 1, ring: true }));
+  for (const nd of rings){ c2.beginPath(); c2.arc(nd.x, nd.y, RING, 0, Math.PI*2); c2.fillStyle = tint; c2.globalAlpha = .22; c2.fill(); c2.globalAlpha = 1;
+    c2.lineWidth = 2; c2.strokeStyle = tint; c2.stroke(); }
+  const all = [...nodes, ...rings];
+  const sim = d3.forceSimulation(all).force("x", d3.forceX(n => n.ring ? n.fx : n.ax).strength(n => n.ring ? 0 : .25))
+    .force("y", d3.forceY(n => n.ring ? n.fy : n.ay).strength(n => n.ring ? 0 : .25))
+    .force("c", d3.forceCollide(n => n.r)).stop();
   for (let k = 0; k < 250; k++) sim.tick();
   for (const nd of nodes){ nd.x = Math.max(14, Math.min(w-14, nd.x)); nd.y = Math.max(14, Math.min(h-14, nd.y)); }
   const g = S.test.graded;
   for (const nd of nodes){
-    if (Math.hypot(nd.x-nd.ax, nd.y-nd.ay) > 8){
+    const dist = Math.hypot(nd.x-nd.ax, nd.y-nd.ay);
+    if (nd.small){   // 丸印のふちから番号へ線を引く
+      const k = RING / Math.max(dist, 1);
+      c2.beginPath(); c2.moveTo(nd.ax + (nd.x-nd.ax)*k, nd.ay + (nd.y-nd.ay)*k); c2.lineTo(nd.x, nd.y); c2.strokeStyle = TT.ink; c2.lineWidth = 1.2; c2.stroke();
+    } else if (dist > 8){
       c2.beginPath(); c2.moveTo(nd.ax, nd.ay); c2.lineTo(nd.x, nd.y); c2.strokeStyle = TT.ink; c2.lineWidth = 1.2; c2.stroke();
       c2.beginPath(); c2.arc(nd.ax, nd.ay, 2.5, 0, Math.PI*2); c2.fillStyle = TT.ink; c2.fill();
     }
@@ -655,7 +708,7 @@ function drawTestMap(){
     let fill = TT.ink;
     if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
       fill = okN && okF ? getComputedStyle(document.documentElement).getPropertyValue("--ok").trim() : getComputedStyle(document.documentElement).getPropertyValue("--ng").trim(); }
-    c2.beginPath(); c2.arc(nd.x, nd.y, many ? 10.5 : 12, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
+    c2.beginPath(); c2.arc(nd.x, nd.y, BR, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
     c2.lineWidth = 2; c2.strokeStyle = TT.panel; c2.stroke();
     c2.font = `700 ${nd.i >= 99 ? 9 : nd.i >= 9 ? 11.5 : 13}px "IBM Plex Mono",ui-monospace,monospace`; c2.fillStyle = TT.panel;
     c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
