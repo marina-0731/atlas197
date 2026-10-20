@@ -126,6 +126,20 @@ main.solo{grid-template-columns:minmax(0,1fr)}
 .atable{width:100%;border-collapse:collapse;font-size:14px}
 .atable th{white-space:nowrap;font-size:12px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
 .atable td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.acards{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:6px}
+.acard{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--ground);border-radius:8px;padding:6px 8px;text-align:left;font-size:14px;line-height:1.25}
+.acard:hover{border-color:var(--ink)}
+.acard.cur{border-color:var(--hi);background:color-mix(in srgb,var(--hi) 16%,var(--ground))}
+.anum{flex:none;min-width:24px;height:24px;padding:0 4px;border-radius:12px;background:var(--ink);color:var(--panel);font-family:var(--mono);font-size:12px;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.acard.cur .anum,.ainfo .anum{background:var(--hi);color:var(--hi-ink)}
+.acard .ef{font-size:28px;line-height:1;flex:none}
+.atx{display:flex;flex-direction:column;min-width:0}
+.atx small{color:var(--muted);font-size:11.5px}
+.ainfo{display:flex;align-items:center;gap:10px;min-height:52px;background:var(--ground);border-radius:10px;padding:8px 12px}
+.ainfo .ef{font-size:40px;line-height:1;flex:none}
+.ainfo .atx b{font-size:16px}
+.ainfo .atx small{font-size:12.5px;line-height:1.5}
+.ainfo .hint{color:var(--muted);font-size:13px}
 .atable tr.cur td{background:color-mix(in srgb,var(--hi) 16%,transparent)}
 .atable tr.cur .num{color:var(--hi)}
 #tmap{cursor:pointer}
@@ -161,6 +175,7 @@ main.solo{grid-template-columns:minmax(0,1fr)}
   <div class="controls">
     <div class="tabs" role="group" aria-label="モード">
       <button class="tab" data-mode="browse" id="t-browse">図鑑で見る</button>
+      <button class="tab" data-mode="atlas" id="t-atlas">地図で一覧</button>
       <button class="tab" data-mode="flag" id="t-flag">国旗 → 国名</button>
       <button class="tab" data-mode="map" id="t-map">場所 → 国名</button>
       <button class="tab" data-mode="name" id="t-name">国名 → 国旗</button>
@@ -447,7 +462,8 @@ function goTo(toRot, toScale, cc, hide){
   cv.addEventListener("pointerup", () => st = null); cv.addEventListener("pointercancel", () => st = null);
 }
 new ResizeObserver(fitCanvas).observe(cv);
-const retheme = () => { T = tok(); draw(); if (S.saved.mode === "test") drawTestMap(); };
+const isSheetMode = () => S.saved.mode === "test" || S.saved.mode === "atlas";
+const retheme = () => { T = tok(); draw(); if (isSheetMode()) drawTestMap(); };
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
 new MutationObserver(retheme).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 
@@ -479,7 +495,7 @@ fetch("world.json").then(r => r.json()).then(topo => {
     f.pt = innerPoint(f.main);
   }
   refreshGlobe(true);
-  if (S.saved.mode === "test") drawTestMap();
+  if (isSheetMode()) drawTestMap();
 });
 
 // 島の中にある点（重心が海に落ちる形の島では、ふちからいちばん遠い点をさがす）
@@ -667,20 +683,21 @@ function renderTest(){
 }
 const testKey = () => [S.saved.region, S.saved.from, S.saved.to, S.saved.pick15 ? "15" : "all"].join("|");
 function drawTestMap(){
-  const cvs = $("tmap"); if (!cvs || !S.test) return;
+  const TS = curSheet();
+  const cvs = $("tmap"); if (!cvs || !TS) return;
   const vw = $("tmapwrap").clientWidth - 2; if (vw <= 0) return;
-  const many = S.test.nums.length > 20;
+  const many = TS.nums.length > 20;
   const TT = tok(), css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates: spot(cc)});
+  const mains = TS.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates: spot(cc)});
   const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
   const lon = d3.geoCentroid(fc)[0];
   // 国どうしが近すぎるとき（中東・カリブ海・太平洋の島など）は、番号がすき間に入るまで地図を大きくしてスクロール表示
   const p0 = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(vw - 60, fc);
-  const pts = S.test.nums.map(cc => p0(spot(cc)));
+  const pts = TS.nums.map(cc => p0(spot(cc)));
   const nn = pts.map((a, i) => d3.min(pts, (b, j) => i === j ? Infinity : Math.hypot(a[0]-b[0], a[1]-b[1])));
   const crowd = Math.max(1, Math.min(3.5, 32 / Math.max(1, d3.quantile(nn.slice().sort(d3.ascending), .15))));
   let w = Math.round(Math.min(2200, vw * crowd));
-  if (many) w = Math.max(w, Math.min(2200, 700 + S.test.nums.length * 12));
+  if (many) w = Math.max(w, Math.min(2200, 700 + TS.nums.length * 12));
   if (w < vw + 40) w = vw;   // ほんの少しだけ大きくするならスクロールなしでいい
   if ($("tmapnote")) $("tmapnote").hidden = w === vw;
   let p = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(w - 60, fc);
@@ -691,11 +708,11 @@ function drawTestMap(){
   cvs.style.width = w + "px"; cvs.style.height = h + "px"; cvs.width = Math.round(w*d); cvs.height = Math.round(h*d);
   const c2 = cvs.getContext("2d"); c2.setTransform(d,0,0,d,0,0);
   const path = d3.geoPath(p, c2);
-  const BR = many ? 10.5 : 12, RING = 13, focus = S.test.focus;
+  const BR = many ? 10.5 : 12, RING = 13, focus = TS.focus;
 
   // 番号の置き場所（同じ大きさの地図なら前回の配置をそのまま使う）
-  if (!S.test.layout || S.test.layout.w !== w || S.test.layout.h !== h) S.test.layout = { w, h, nodes: layoutBadges(path, p, w, h, BR, RING) };
-  const nodes = S.test.layout.nodes;
+  if (!TS.layout || TS.layout.w !== w || TS.layout.h !== h) TS.layout = { w, h, nodes: layoutBadges(path, p, w, h, BR, RING) };
+  const nodes = TS.layout.nodes;
 
   c2.fillStyle = TT.ocean; c2.fillRect(0,0,w,h);
   c2.beginPath(); path(grat); c2.strokeStyle = TT.grat; c2.lineWidth = 1; c2.stroke();
@@ -729,24 +746,26 @@ function drawTestMap(){
   }
   // 番号
   c2.textAlign = "center"; c2.textBaseline = "middle";
-  const g = S.test.graded;
+  const g = TS.graded;
   for (const nd of nodes){
     const on = nd.i === focus;
     let fill = on ? TT.hi : TT.ink;
-    if (g){ const okN = nameOk(nd.cc, S.test.name[nd.i]), okF = S.test.flag[nd.i] !== undefined && S.test.flag[nd.i] !== "" && +S.test.flag[nd.i] === S.test.flags.indexOf(nd.cc);
+    if (g){ const okN = nameOk(nd.cc, TS.name[nd.i]), okF = TS.flag[nd.i] !== undefined && TS.flag[nd.i] !== "" && +TS.flag[nd.i] === TS.flags.indexOf(nd.cc);
       fill = okN && okF ? css("--ok") : css("--ng"); }
     const r = on ? BR + 3 : BR;
     c2.beginPath(); c2.arc(nd.x, nd.y, r, 0, Math.PI*2); c2.fillStyle = fill; c2.fill();
     c2.lineWidth = on ? 3 : 2; c2.strokeStyle = on && g ? TT.hi : TT.panel; c2.stroke();
-    c2.font = `700 ${(nd.i >= 99 ? 9 : nd.i >= 9 ? 11.5 : 13) + (on ? 2 : 0)}px "IBM Plex Mono",ui-monospace,monospace`;
+    const lab = TS.label ? String(TS.label[nd.i]) : String(nd.i + 1);
+    c2.font = `700 ${(lab.length >= 3 ? 9 : lab.length === 2 ? 11.5 : 13) + (on ? 2 : 0)}px "IBM Plex Mono",ui-monospace,monospace`;
     c2.fillStyle = on && !g ? css("--hi-ink") : TT.panel;
-    c2.fillText(String(nd.i+1), nd.x, nd.y + .5);
+    c2.fillText(lab, nd.x, nd.y + .5);
   }
 }
 
 // 番号を、国をかくさず・線が交差しにくい位置に置く
 function layoutBadges(path, p, w, h, BR, RING){
-  const nodes = S.test.nums.map((cc, i) => {
+  const TS = curSheet();
+  const nodes = TS.nums.map((cc, i) => {
     const f = featBy.get(cc); const [x,y] = p(spot(cc));   // 国（島）の陸の上の点
     const a = f ? path.area(f) : 0;
     // tiny：島国など点のような国 → 丸で囲む。small：番号で隠れてしまう国 → 番号を外に出して線で指す
@@ -790,11 +809,49 @@ function layoutBadges(path, p, w, h, BR, RING){
 }
 // 番号をえらぶ：地図と解答らんの行を光らせる
 function setTestFocus(i){
-  if (!S.test || S.test.focus === i) return;
-  S.test.focus = i;
+  const TS = curSheet();
+  if (!TS || TS.focus === i) return;
+  TS.focus = i;
   document.querySelectorAll(".atable tbody tr").forEach((tr, k) => tr.classList.toggle("cur", k === i));
+  document.querySelectorAll(".acard").forEach((el, k) => { el.classList.toggle("cur", k === i); el.setAttribute("aria-pressed", k === i); });
+  if (S.saved.mode === "atlas") renderAtlasInfo();
   drawTestMap();
 }
+/* ---------- 地図で一覧（テストと同じ地図に答えを並べる） ---------- */
+const curSheet = () => S.saved.mode === "atlas" ? S.sheet : S.test;
+const atlasKey = () => [S.saved.region, S.saved.from, S.saved.to].join("|");
+function renderAtlas(){
+  if (!S.sheet || S.sheet.key !== atlasKey()){
+    const P = pool();
+    // 番号は「世界の国旗」国旗一覧の番号（全世界のときは1から通し番号）
+    S.sheet = { key: atlasKey(), nums: P.map(c => c.c), label: P.map((c, i) => S.saved.region === "all" ? i + 1 : c.no), graded: false, focus: null, layout: null };
+  }
+  const SH = S.sheet, n = SH.nums.length;
+  const rangeTxt = S.saved.region === "all" ? "全世界" : `${S.saved.region} ${S.saved.from}〜${S.saved.to}番`;
+  const cards = SH.nums.map((cc, i) => { const c = byCode.get(cc);
+    return `<button class="acard ${SH.focus === i ? "cur" : ""}" data-ai="${i}" aria-pressed="${SH.focus === i}">
+      <span class="anum">${SH.label[i]}</span><span class="ef" aria-hidden="true">${c.f}</span>
+      <span class="atx"><b>${esc(c.n)}</b><small>${esc(c.cap)}</small></span></button>`; }).join("");
+  $("right").innerHTML = `<div class="sheet">
+    <div><h2>地図で一覧</h2><p class="lead">範囲：${rangeTxt}（${n}カ国）　番号は国旗一覧の番号です。下の国を選ぶと地図のその国が光り、地図の番号をタップすると下の国が光ります。</p></div>
+    <div class="tmapwrap" id="tmapwrap"><canvas id="tmap" aria-label="番号がついた地図"></canvas></div>
+    <p class="tmapnote" id="tmapnote" hidden>国どうしが近いので地図を大きくしています。地図は縦横にスクロールできます。</p>
+    <div class="ainfo" id="atlasInfo" aria-live="polite"></div>
+    <div class="acards">${cards}</div>
+  </div>`;
+  renderAtlasInfo();
+  drawTestMap();
+}
+// 選んでいる国の国旗・国名・場所の覚え方を地図のすぐ下に出す
+function renderAtlasInfo(){
+  const el = $("atlasInfo"); if (!el || !S.sheet) return;
+  const i = S.sheet.focus;
+  if (i === null || i === undefined){ el.innerHTML = `<span class="hint">国を選ぶと、ここに国旗と場所の覚え方が出ます。</span>`; return; }
+  const c = byCode.get(S.sheet.nums[i]);
+  el.innerHTML = `<span class="anum">${S.sheet.label[i]}</span><span class="ef" aria-hidden="true">${c.f}</span>
+    <span class="atx"><b>${esc(c.n)}</b><small>首都 ${esc(c.cap)}${WHERE[c.c] ? "　" + esc(WHERE[c.c]) : ""}</small></span>`;
+}
+
 function gradeTest(){
   const T2 = S.test; T2.graded = true;
   T2.nums.forEach((cc, i) => {
@@ -803,13 +860,14 @@ function gradeTest(){
   });
   save(); renderMeter(); renderTest(); window.scrollTo({top: 0, behavior: reduce ? "auto" : "smooth"});
 }
-new ResizeObserver(() => { if (S.saved.mode === "test") drawTestMap(); }).observe(document.getElementById("right"));
+new ResizeObserver(() => { if (isSheetMode()) drawTestMap(); }).observe(document.getElementById("right"));
 
 function render(){
   renderTabs(); renderChips(); renderMeter();
-  const isTest = S.saved.mode === "test";
-  $("globeSec").hidden = isTest; document.querySelector("main").classList.toggle("solo", isTest);
-  if (isTest){ renderTest(); return; }
+  const isSheet = S.saved.mode === "test" || S.saved.mode === "atlas";
+  $("globeSec").hidden = isSheet; document.querySelector("main").classList.toggle("solo", isSheet);
+  if (S.saved.mode === "test"){ renderTest(); return; }
+  if (S.saved.mode === "atlas"){ renderAtlas(); return; }
   if (S.saved.mode === "browse"){ if (S.saved.region !== "all" && !inPool(S.sel)) S.sel = pool()[0].c; renderBrowse(); if (feats.length) refreshGlobe(); }
   else { S.q = null; S.recent = []; next(); }
 }
@@ -825,6 +883,16 @@ document.addEventListener("click", e => {
   else if (t.classList.contains("choice")) answer(t.dataset.cc);
   else if (t.id === "nextBtn") next();
   else if (t.id === "tGrade") gradeTest();
+  else if (t.dataset.ai !== undefined){
+    // 一覧の国を選んだら、地図のその国が見えるところまで移動する
+    setTestFocus(+t.dataset.ai);
+    const wr = $("tmapwrap"), nd = S.sheet.layout && S.sheet.layout.nodes[+t.dataset.ai];
+    if (wr && nd){
+      wr.scrollTo({ left: nd.x - wr.clientWidth / 2, top: nd.y - wr.clientHeight / 2, behavior: reduce ? "auto" : "smooth" });
+      const sy = wr.getBoundingClientRect().top + nd.y;   // 画面の上での、その国の番号の高さ
+      if (sy < 40 || sy > innerHeight - 40) window.scrollTo({ top: scrollY + sy - innerHeight / 3, behavior: reduce ? "auto" : "smooth" });
+    }
+  }
   else if (t.id === "tPick15" || t.id === "tPickAll"){ S.saved.pick15 = t.id === "tPick15"; delete S.saved.testAll; save(); renderTest(); }
   else if (t.id === "tNew"){ newTest(); S.test.key = testKey(); renderTest(); }
   else if (t.id === "tRetry"){ S.test.name = []; S.test.flag = []; S.test.graded = false; renderTest(); }
@@ -838,10 +906,11 @@ document.addEventListener("focusin", e => {
 });
 // 地図の番号（または国の点）をタップしたとき。スクロールのときは click が来ないので反応しない
 document.addEventListener("click", e => {
-  if (e.target.id !== "tmap" || !S.test || !S.test.layout) return;
+  const TS = curSheet();
+  if (e.target.id !== "tmap" || !TS || !TS.layout) return;
   const r = e.target.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   let best = null, bd = 22;
-  for (const nd of S.test.layout.nodes){
+  for (const nd of TS.layout.nodes){
     const dd = Math.min(Math.hypot(nd.x - x, nd.y - y), Math.hypot(nd.ax - x, nd.ay - y));
     if (dd < bd){ bd = dd; best = nd; }
   }
@@ -858,7 +927,7 @@ document.addEventListener("change", e => {
   S.saved.from = a; S.saved.to = b; save(); render();
 });
 document.addEventListener("keydown", e => {
-  if (S.saved.mode === "browse" || S.saved.mode === "test" || !S.q || e.metaKey || e.ctrlKey || e.altKey || e.target.tagName === "SELECT") return;
+  if (S.saved.mode === "browse" || isSheetMode() || !S.q || e.metaKey || e.ctrlKey || e.altKey || e.target.tagName === "SELECT") return;
   if (!S.q.done && /^[1-4]$/.test(e.key)) answer(S.q.opts[+e.key - 1]);
   else if (S.q.done && (e.key === "Enter" || e.key === " ") && document.activeElement?.id !== "nextBtn"){ e.preventDefault(); next(); }
 });
