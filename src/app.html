@@ -330,10 +330,10 @@ function draw(){
     const a = f ? lpath.area(f) : 0;
     // 丸印がつく国（面積400未満）は名前を印の下に
     if (a >= (isT ? 400 : SMALL)){ const [x,y] = lpath.centroid(a > 4 * lpath.area(f.main) ? f : f.main); return isFinite(x) ? {x, y, a, small:false} : null; }
-    const [x,y] = p([c.ll[1], c.ll[0]]);
+    const [x,y] = p(spot(cc));
     return {x, y: y + (isT ? 28 : 13), dot: [x,y], a, small:true};
   }
-  if (G.target && !G.hide.has(G.target) && d3.geoDistance([byCode.get(G.target).ll[1], byCode.get(G.target).ll[0]], center) < 1.35){
+  if (G.target && !G.hide.has(G.target) && d3.geoDistance(spot(G.target), center) < 1.35){
     const at = labelAt(G.target, true);
     if (at){ ctx.font = labelFont(15, 700); const tw = ctx.measureText(byCode.get(G.target).n).width; boxes.push([at.x-tw/2-3, at.y-11, at.x+tw/2+3, at.y+11]); }
     if (at && at.small) boxes.push([at.dot[0]-18, at.dot[1]-18, at.dot[0]+18, at.dot[1]+18]);   // 丸印の上に名前を重ねない
@@ -350,10 +350,10 @@ function draw(){
   }
 
   /* 国名ラベル：ターゲット→面積の大きい順、重なるものは省略 */
-  const L = [];
+  const L = [], near = Math.min(1.35, visAng * Math.PI / 180 + 0.3);
   for (const c of C){
     const cc = c.c; if (G.hide.has(cc)) continue;
-    if (d3.geoDistance([c.ll[1], c.ll[0]], center) > 1.35) continue;
+    if (d3.geoDistance(spot(cc), center) > near) continue;   // 見えていない国は計算しない
     const isT = cc === G.target;
     const at = labelAt(cc, isT); if (!at) continue;
     if (!isT && at.small && G.scale < 2) continue;   // 島国の名前は近づいたときだけ
@@ -378,7 +378,7 @@ function draw(){
   ctx.restore();
   ctx.beginPath(); ctx.arc(w/2,w/2,R,0,Math.PI*2); ctx.strokeStyle = T.border; ctx.lineWidth = 1; ctx.stroke();
   if (G.marker){
-    const c = byCode.get(G.marker), ll = [c.ll[1], c.ll[0]];
+    const ll = spot(G.marker);
     if (d3.geoDistance(ll, center) < Math.PI/2){
       const small = !tf || path.area(tf.main) < 400;
       if (small){ const [x,y] = p(ll);
@@ -392,16 +392,24 @@ function drawMini(){
   const mw = mini.clientWidth, mh = mini.clientHeight; if (!mw || !feats.length) return;
   const p = d3.geoEquirectangular().fitExtent([[3,3],[mw-3,mh-3]], {type:"Sphere"});
   const path = d3.geoPath(p, mctx);
-  mctx.clearRect(0,0,mw,mh);
-  mctx.beginPath(); path({type:"Sphere"}); mctx.fillStyle = T.ocean; mctx.fill();
-  mctx.beginPath(); for (const f of feats) path(f); mctx.fillStyle = T.land; mctx.fill();
-  mctx.strokeStyle = T.border; mctx.lineWidth = .3; mctx.stroke();
+  // 世界地図は大きさと色が変わったときだけ描き直し、あとは保存した絵を使う（毎回描くと重い）
+  const key = [mini.width, mini.height, T.ocean, T.land, T.border].join("|");
+  if (!miniBase || miniBase.key !== key){
+    const off = document.createElement("canvas"); off.width = mini.width; off.height = mini.height;
+    const oc = off.getContext("2d"); oc.setTransform(mini.width / mw, 0, 0, mini.height / mh, 0, 0);
+    const op = d3.geoPath(p, oc);
+    oc.beginPath(); op({type:"Sphere"}); oc.fillStyle = T.ocean; oc.fill();
+    oc.beginPath(); for (const f of feats) op(f); oc.fillStyle = T.land; oc.fill();
+    oc.strokeStyle = T.border; oc.lineWidth = .3; oc.stroke();
+    miniBase = { key, img: off };
+  }
+  mctx.save(); mctx.setTransform(1,0,0,1,0,0); mctx.clearRect(0,0,mini.width,mini.height); mctx.drawImage(miniBase.img, 0, 0); mctx.restore();
   // 大きな地球儀で見えている範囲
   const center = [-G.rot[0], -G.rot[1]];
   const ang = Math.asin(Math.min(1, 1/G.scale)) * 180/Math.PI;
   mctx.beginPath(); path(d3.geoCircle().center(center).radius(ang)()); mctx.strokeStyle = T.muted; mctx.lineWidth = 1; mctx.setLineDash([3,2]); mctx.stroke(); mctx.setLineDash([]);
   if (G.marker){
-    const c = byCode.get(G.marker), [x,y] = p([c.ll[1], c.ll[0]]);
+    const [x,y] = p(spot(G.marker));
     const tf = featBy.get(G.marker);
     if (tf){ mctx.beginPath(); path(tf); mctx.fillStyle = T.hi; mctx.fill(); }
     mctx.beginPath(); mctx.arc(x,y,4,0,Math.PI*2); mctx.fillStyle = T.hi; mctx.fill();
@@ -410,7 +418,8 @@ function drawMini(){
 }
 function flyTo(cc, show, hide){
   const c = byCode.get(cc);
-  const toRot = [-c.ll[1], -Math.max(-60, Math.min(60, c.ll[0])), 0];
+  const [lo, la] = spot(cc);
+  const toRot = [-lo, -Math.max(-60, Math.min(60, la)), 0];
   const toScale = 1/Math.sin(viewAngle(cc)*Math.PI/180);
   goTo(toRot, Math.min(toScale, 3.8), show ? cc : null, hide);
 }
@@ -460,9 +469,39 @@ fetch("world.json").then(r => r.json()).then(topo => {
     }
   }
   feats = feats.filter(f => f.geometry);
+  // 印をつける島と地点を決める：データの代表地点から800km以内でいちばん大きい島の、陸の上の点
+  // （キリバスは首都タラワのある島々。いちばん大きい島は3,000km以上はなれたクリスマス島なので使わない）
+  for (const [cc, f] of featBy){
+    const c = byCode.get(cc), ll = [c.ll[1], c.ll[0]];
+    const polys = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates.map(co => ({type:"Polygon", coordinates: co})) : [f.geometry];
+    const near = polys.filter(g => d3.geoDistance(ll, d3.geoCentroid(g)) < 800 / 6371);
+    f.main = (near.length ? near : polys).reduce((a, b) => d3.geoArea(b) > d3.geoArea(a) ? b : a);
+    f.pt = innerPoint(f.main);
+  }
   refreshGlobe(true);
   if (S.saved.mode === "test") drawTestMap();
 });
+
+// 島の中にある点（重心が海に落ちる形の島では、ふちからいちばん遠い点をさがす）
+function innerPoint(g){
+  const c = d3.geoCentroid(g);
+  if (d3.geoContains(g, c)) return c;
+  const ring = g.coordinates[0];
+  let [[x0, y0], [x1, y1]] = d3.geoBounds(g);
+  if (x1 < x0) x1 += 360;   // 日付変更線をまたぐ島
+  let best = null, bd = -1;
+  for (let i = 1; i < 16; i++) for (let j = 1; j < 16; j++){
+    let x = x0 + (x1 - x0) * i / 16; if (x > 180) x -= 360;
+    const q = [x, y0 + (y1 - y0) * j / 16];
+    if (!d3.geoContains(g, q)) continue;
+    let md = Infinity;
+    for (let k = 0; k < ring.length; k += Math.max(1, ring.length >> 6)) md = Math.min(md, d3.geoDistance(q, ring[k]));
+    if (md > bd){ bd = md; best = q; }
+  }
+  return best || ring[0];
+}
+// 国の印をつける地点 [経度, 緯度]
+const spot = cc => { const f = featBy.get(cc); if (f && f.pt) return f.pt; const c = byCode.get(cc); return [c.ll[1], c.ll[0]]; };
 
 /* ---------- UI ---------- */
 const $ = id => document.getElementById(id);
@@ -632,12 +671,12 @@ function drawTestMap(){
   const vw = $("tmapwrap").clientWidth - 2; if (vw <= 0) return;
   const many = S.test.nums.length > 20;
   const TT = tok(), css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates:[byCode.get(cc).ll[1], byCode.get(cc).ll[0]]});
+  const mains = S.test.nums.map(cc => featBy.get(cc) ? featBy.get(cc).main : {type:"Point", coordinates: spot(cc)});
   const fc = {type:"FeatureCollection", features: mains.map(g => ({type:"Feature", geometry:g}))};
   const lon = d3.geoCentroid(fc)[0];
   // 国どうしが近すぎるとき（中東・カリブ海・太平洋の島など）は、番号がすき間に入るまで地図を大きくしてスクロール表示
   const p0 = d3.geoNaturalEarth1().rotate([-lon, 0]).fitWidth(vw - 60, fc);
-  const pts = S.test.nums.map(cc => p0([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]));
+  const pts = S.test.nums.map(cc => p0(spot(cc)));
   const nn = pts.map((a, i) => d3.min(pts, (b, j) => i === j ? Infinity : Math.hypot(a[0]-b[0], a[1]-b[1])));
   const crowd = Math.max(1, Math.min(3.5, 32 / Math.max(1, d3.quantile(nn.slice().sort(d3.ascending), .15))));
   let w = Math.round(Math.min(2200, vw * crowd));
@@ -708,8 +747,7 @@ function drawTestMap(){
 // 番号を、国をかくさず・線が交差しにくい位置に置く
 function layoutBadges(path, p, w, h, BR, RING){
   const nodes = S.test.nums.map((cc, i) => {
-    const f = featBy.get(cc); let [x,y] = f ? path.centroid(f.main) : p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
-    if (!isFinite(x)) [x,y] = p([byCode.get(cc).ll[1], byCode.get(cc).ll[0]]);
+    const f = featBy.get(cc); const [x,y] = p(spot(cc));   // 国（島）の陸の上の点
     const a = f ? path.area(f) : 0;
     // tiny：島国など点のような国 → 丸で囲む。small：番号で隠れてしまう国 → 番号を外に出して線で指す
     return { i, cc, ax:x, ay:y, tiny: a < 180, small: a < 1500, r: BR + 2 };
