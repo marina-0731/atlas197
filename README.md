@@ -50,4 +50,5 @@ git add -A && git commit -m "変更内容" && git push
 
 - 地図：[world-atlas](https://github.com/topojson/world-atlas)（Natural Earth, public domain）
 - 国コード・位置：[world-countries](https://github.com/mledoze/countries)（ODbL）
+- ペルー・コスタリカの国旗（紋章入り）：[Wikimedia Commons](https://commons.wikimedia.org/)（パブリックドメイン）
 - ライブラリ：d3.js, topojson-client

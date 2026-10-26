@@ -29,6 +29,7 @@
   --chip:#1F2F36;
 }
 *{box-sizing:border-box}
+.flagimg{height:.78em;width:auto;vertical-align:-.02em;border-radius:.08em;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
 [hidden]{display:none!important}
 body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:18px 40px}
 .wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
@@ -207,6 +208,10 @@ main.solo{grid-template-columns:minmax(0,1fr)}
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script>
 const C = __DATA__;
+// 絵文字の国旗が「世界の国旗」の一覧（紋章入り）と違う国は、紋章入りの国旗画像を使う
+// （ウィキメディア・コモンズ、パブリックドメイン）
+const FLAG_IMG = { PE: "flags/pe.svg", CR: "flags/cr.svg" };
+for (const c of C) if (FLAG_IMG[c.c]) c.f = `<img class="flagimg" src="${FLAG_IMG[c.c]}" alt="">`;
 const REGIONS = ["アジア","ヨーロッパ","アフリカ","北アメリカ","南アメリカ","オセアニア"];
 const byCode = new Map(C.map(c => [c.c, c]));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;

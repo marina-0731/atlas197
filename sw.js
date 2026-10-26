@@ -1,10 +1,11 @@
 // オフラインでも遊べるように、アプリ本体と地図・ライブラリをキャッシュする。
 // アプリを更新したら VERSION を上げる（tools/build.py が自動で書き換える）。
-const VERSION = "20261020145547";
+const VERSION = "20261026160828";
 const CACHE = "atlas197-" + VERSION;
 const PRECACHE = [
   "./", "./index.html", "./world.json", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
+  "./flags/pe.svg", "./flags/cr.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js",
   "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"
 ];
@@ -26,7 +27,8 @@ self.addEventListener("fetch", e => {
   const sameSite = new URL(e.request.url).origin === location.origin;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const hit = await cache.match(e.request, { ignoreSearch: e.request.mode === "navigate" });
-    const net = fetch(e.request).then(res => {
+    // このサイトのファイルは、ブラウザの一時保存を使わずに必ずサーバーへ確認する（古い版が出ないように）
+    const net = (sameSite ? fetch(e.request.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(e.request)).then(res => {
       if (res && (res.ok || res.type === "opaque")) cache.put(e.request, res.clone());
       return res;
     });
